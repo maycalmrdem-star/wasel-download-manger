@@ -4,10 +4,13 @@ const path = require('node:path');
 const http = require('node:http');
 const https = require('node:https');
 const { Transform } = require('node:stream');
-const { pipeline } = require('node:stream/promises');
+const { finished, pipeline } = require('node:stream/promises');
 const { isSupportedLanguage } = require('./languages');
 
 const MAX_ACTIVE_DOWNLOADS = 3;
+const DEFAULT_CONNECTIONS_PER_DOWNLOAD = 4;
+const MAX_CONNECTIONS_PER_DOWNLOAD = 8;
+const RANGE_SEGMENT_SIZE = 2 * 1024 * 1024;
 const REDIRECT_CODES = new Set([301, 302, 303, 307, 308]);
 
 class DownloadManager {
@@ -17,7 +20,13 @@ class DownloadManager {
     this.onChange = onChange;
     this.items = [];
     this.active = new Map();
-    this.settings = { theme: 'dark', language: 'ara', maxActiveDownloads: MAX_ACTIVE_DOWNLOADS };
+    this.settings = {
+      theme: 'dark',
+      language: 'ara',
+      maxActiveDownloads: MAX_ACTIVE_DOWNLOADS,
+      connectionsPerDownload: DEFAULT_CONNECTIONS_PER_DOWNLOAD,
+      startWithWindows: false
+    };
     this.persistChain = Promise.resolve();
     this.shuttingDown = false;
     this.tick = setInterval(() => this.reportProgress(), 500);
@@ -37,6 +46,15 @@ class DownloadManager {
       }
       if (stored.settings && Number.isInteger(stored.settings.maxActiveDownloads)) {
         this.settings.maxActiveDownloads = Math.min(10, Math.max(1, stored.settings.maxActiveDownloads));
+      }
+      if (stored.settings && Number.isInteger(stored.settings.connectionsPerDownload)) {
+        this.settings.connectionsPerDownload = Math.min(
+          MAX_CONNECTIONS_PER_DOWNLOAD,
+          Math.max(1, stored.settings.connectionsPerDownload)
+        );
+      }
+      if (stored.settings && typeof stored.settings.startWithWindows === 'boolean') {
+        this.settings.startWithWindows = stored.settings.startWithWindows;
       }
       if (stored.settings && typeof stored.settings.outputFolder === 'string') {
         const storedFolder = path.resolve(stored.settings.outputFolder);
@@ -135,7 +153,7 @@ class DownloadManager {
     const active = this.active.get(id);
     if (active) {
       active.stopReason = 'paused';
-      active.request?.destroy();
+      destroyRequests(active);
       await active.done;
     }
     await this.persist();
@@ -159,7 +177,7 @@ class DownloadManager {
     item.error = null;
     const active = this.active.get(id);
     if (active) active.stopReason = 'cancelled';
-    active?.request?.destroy();
+    if (active) destroyRequests(active);
     if (active?.done) await active.done;
     await this.removePartial(item);
     item.receivedBytes = 0;
@@ -231,6 +249,19 @@ class DownloadManager {
       }
       this.settings.maxActiveDownloads = value;
     }
+    if (settings.connectionsPerDownload !== undefined) {
+      const value = Number(settings.connectionsPerDownload);
+      if (!Number.isInteger(value) || value < 1 || value > MAX_CONNECTIONS_PER_DOWNLOAD) {
+        throw new Error('عدد الاتصالات لكل تنزيل يجب أن يكون بين 1 و8.');
+      }
+      this.settings.connectionsPerDownload = value;
+    }
+    if (settings.startWithWindows !== undefined) {
+      if (typeof settings.startWithWindows !== 'boolean') {
+        throw new Error('إعداد بدء التشغيل مع Windows غير صالح.');
+      }
+      this.settings.startWithWindows = settings.startWithWindows;
+    }
     await this.persist();
     this.publish();
     this.schedule();
@@ -245,7 +276,7 @@ class DownloadManager {
       const item = this.getDownload(id);
       if (item && item.status === 'downloading') item.status = 'paused';
       active.stopReason = 'shutdown';
-      active.request?.destroy();
+      destroyRequests(active);
     }
     await Promise.all(activeDownloads.map(([, active]) => active.done));
     await this.persist();
@@ -264,7 +295,7 @@ class DownloadManager {
       if (!item) break;
       const startedAt = Date.now();
       const control = {
-        request: null,
+        requests: new Set(),
         lastBytes: item.receivedBytes,
         lastTime: startedAt,
         samples: [[startedAt, item.receivedBytes]]
@@ -290,73 +321,28 @@ class DownloadManager {
   }
 
   async runDownload(item, control) {
-    let offset = 0;
     try {
       await ensureDirectory(path.dirname(item.savePath));
-      offset = await this.getPartialSize(item);
-      item.receivedBytes = offset;
-      for (let attempt = 0; attempt < 2; attempt += 1) {
-        const headers = offset > 0 ? { Range: `bytes=${offset}-` } : {};
-        const { response, request } = await this.openResponse(item.url, headers, control);
-        const status = response.statusCode || 0;
-
-        if (status === 416 && offset > 0) {
-          const range = response.headers['content-range'] || '';
-          const total = Number(range.match(/\/(\d+)$/)?.[1]);
-          response.resume();
-          if (Number.isFinite(total) && total === offset) {
-            item.totalBytes = total;
-            break;
-          }
-          await this.removePartial(item);
-          offset = 0;
-          continue;
+      const existingPartSize = await getFileSize(`${item.savePath}.part`);
+      let segmented = false;
+      if (existingPartSize === 0) {
+        try {
+          segmented = await this.trySegmentedDownload(item, control);
+        } catch (error) {
+          if (error.code !== 'ERR_RANGE_UNSUPPORTED') throw error;
+          control.abortRequests = false;
+          await this.removeSegmentParts(item);
+          item.receivedBytes = 0;
+          item.totalBytes = 0;
         }
-
-        const append = offset > 0 && status === 206;
-        if (offset > 0 && status === 200) {
-          response.resume();
-          request.destroy();
-          await this.removePartial(item);
-          offset = 0;
-          continue;
-        }
-        if (status < 200 || status >= 300) {
-          response.resume();
-          throw new Error(`استجاب الخادم بالرمز ${status}.`);
-        }
-        if (append) {
-          const start = Number(response.headers['content-range']?.match(/^bytes (\d+)-/)?.[1]);
-          if (start !== offset) {
-            response.resume();
-            throw new Error('أرسل الخادم نطاق استئناف غير متوقع.');
-          }
-        }
-
-        const contentLength = Number(response.headers['content-length']);
-        const contentRangeTotal = Number(response.headers['content-range']?.match(/\/(\d+)$/)?.[1]);
-        item.totalBytes = Number.isFinite(contentRangeTotal)
-          ? contentRangeTotal
-          : Number.isFinite(contentLength) ? offset + contentLength : 0;
-        item.receivedBytes = append ? offset : 0;
-        const output = fs.createWriteStream(`${item.savePath}.part`, { flags: append ? 'a' : 'w' });
-        const progress = new Transform({
-          transform: (chunk, _encoding, callback) => {
-            item.receivedBytes += chunk.length;
-            callback(null, chunk);
-          }
-        });
-        await pipeline(response, progress, output);
-        item.receivedBytes = await this.getPartialSize(item);
-        if (item.totalBytes > 0 && item.receivedBytes !== item.totalBytes) {
-          throw new Error(`انقطع الاتصال قبل اكتمال الملف (${item.receivedBytes}/${item.totalBytes} بايت).`);
-        }
-        break;
       }
-
+      if (!segmented) {
+        await this.removeSegmentParts(item);
+        await this.downloadSingleStream(item, control);
+      }
       if (control.stopReason || item.status === 'paused' || item.status === 'cancelled' || this.shuttingDown) return;
       if (item.totalBytes > 0 && item.receivedBytes !== item.totalBytes) {
-        throw new Error('تعذر استئناف التنزيل من هذا الخادم.');
+        throw new Error(`لم يكتمل الملف (${item.receivedBytes}/${item.totalBytes} بايت).`);
       }
       await fsp.rename(`${item.savePath}.part`, item.savePath);
       item.status = 'completed';
@@ -375,6 +361,180 @@ class DownloadManager {
       item.error = ['EACCES', 'EPERM'].includes(reportedError.code)
         ? `لا توجد صلاحية للكتابة إلى مسار الحفظ "${item.savePath}". اختر مجلدًا آخر أو تحقق من صلاحيات القرص. (${reportedError.code})`
         : reportedError.message || 'حدث خطأ أثناء التنزيل.';
+    }
+  }
+
+  async trySegmentedDownload(item, control) {
+    const probe = await this.openResponse(item.url, { Range: 'bytes=0-0' }, control);
+    const match = probe.response.headers['content-range']?.match(/^bytes 0-0\/(\d+)$/);
+    const total = Number(match?.[1]);
+    const supportsRanges = probe.response.statusCode === 206
+      && Number.isSafeInteger(total)
+      && total > 1;
+    const validators = {
+      etag: probe.response.headers.etag,
+      lastModified: probe.response.headers['last-modified']
+    };
+    if (!supportsRanges || control.stopReason) {
+      probe.request.destroy();
+      return false;
+    }
+    probe.response.resume();
+    await finished(probe.response);
+
+    item.totalBytes = total;
+    const parts = Array.from({ length: Math.ceil(total / RANGE_SEGMENT_SIZE) }, (_, index) => {
+      const start = index * RANGE_SEGMENT_SIZE;
+      const end = Math.min(total - 1, start + RANGE_SEGMENT_SIZE - 1);
+      return {
+        start,
+        end,
+        file: `${item.savePath}.part.segment-${index}`,
+        expectedSize: end - start + 1
+      };
+    });
+    const completedParts = new Set();
+    for (let index = 0; index < parts.length; index += 1) {
+      const size = await getFileSize(parts[index].file);
+      if (size === parts[index].expectedSize) completedParts.add(index);
+      else if (size > 0) await fsp.unlink(parts[index].file);
+    }
+    item.receivedBytes = [...completedParts].reduce((size, index) => size + parts[index].expectedSize, 0);
+    let nextPartIndex = 0;
+    const workerCount = Math.min(this.settings.connectionsPerDownload, parts.length);
+    const workers = Array.from({ length: workerCount }, async () => {
+      while (!control.stopReason && !control.abortRequests) {
+        const index = nextPartIndex;
+        nextPartIndex += 1;
+        if (index >= parts.length) return;
+        if (completedParts.has(index)) continue;
+
+        const part = parts[index];
+        const headers = {
+          Range: `bytes=${part.start}-${part.end}`,
+          ...rangeValidatorHeaders(validators)
+        };
+        const { response } = await this.openResponse(item.url, headers, control);
+        const range = response.headers['content-range']?.match(/^bytes (\d+)-(\d+)\/(\d+)$/);
+        if (response.statusCode !== 206
+          || Number(range?.[1]) !== part.start
+          || Number(range?.[2]) !== part.end
+          || Number(range?.[3]) !== total) {
+          response.destroy();
+          const error = new Error('لم يحترم الخادم نطاقات التنزيل المتوازية؛ سيُستأنف باتصال واحد.');
+          error.code = 'ERR_RANGE_UNSUPPORTED';
+          throw error;
+        }
+        const progress = new Transform({
+          transform: (chunk, _encoding, callback) => {
+            item.receivedBytes += chunk.length;
+            callback(null, chunk);
+          }
+        });
+        await pipeline(response, progress, fs.createWriteStream(part.file, { flags: 'w' }));
+        if (await getFileSize(part.file) !== part.expectedSize) {
+          throw new Error('لم يكتمل أحد أجزاء الملف بالحجم المتوقع.');
+        }
+        completedParts.add(index);
+      }
+    });
+    try {
+      await Promise.all(workers);
+    } catch (error) {
+      control.abortRequests = true;
+      destroyRequests(control);
+      await Promise.allSettled(workers);
+      throw error;
+    }
+    if (control.stopReason) return true;
+    if (item.receivedBytes !== total || completedParts.size !== parts.length) {
+      throw new Error('لم تكتمل جميع أجزاء التنزيل.');
+    }
+
+    const output = fs.createWriteStream(`${item.savePath}.part`, { flags: 'w' });
+    for (const part of parts) {
+      await pipeline(fs.createReadStream(part.file), output, { end: false });
+    }
+    output.end();
+    await finished(output);
+    await this.removeSegmentParts(item);
+    return true;
+  }
+
+  async removeSegmentParts(item) {
+    const directory = path.dirname(item.savePath);
+    const prefix = `${path.basename(item.savePath)}.part.segment-`;
+    let files;
+    try {
+      files = await fsp.readdir(directory);
+    } catch (error) {
+      if (error.code === 'ENOENT' || error.code === 'ENOTDIR') return;
+      throw error;
+    }
+    await Promise.all(files.filter((file) => file.startsWith(prefix))
+      .map((file) => fsp.unlink(path.join(directory, file))));
+  }
+
+  async downloadSingleStream(item, control) {
+    let offset = await getFileSize(`${item.savePath}.part`);
+    item.receivedBytes = offset;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const headers = offset > 0 ? { Range: `bytes=${offset}-` } : {};
+      const { response, request } = await this.openResponse(item.url, headers, control);
+      const status = response.statusCode || 0;
+
+      if (status === 416 && offset > 0) {
+        const range = response.headers['content-range'] || '';
+        const total = Number(range.match(/\/(\d+)$/)?.[1]);
+        response.resume();
+        if (Number.isFinite(total) && total === offset) {
+          item.totalBytes = total;
+          break;
+        }
+        await this.removePartial(item);
+        offset = 0;
+        continue;
+      }
+
+      const append = offset > 0 && status === 206;
+      if (offset > 0 && status === 200) {
+        response.resume();
+        request.destroy();
+        await this.removePartial(item);
+        offset = 0;
+        continue;
+      }
+      if (status < 200 || status >= 300) {
+        response.resume();
+        throw new Error(`استجاب الخادم بالرمز ${status}.`);
+      }
+      if (append) {
+        const start = Number(response.headers['content-range']?.match(/^bytes (\d+)-/)?.[1]);
+        if (start !== offset) {
+          response.resume();
+          throw new Error('أرسل الخادم نطاق استئناف غير متوقع.');
+        }
+      }
+
+      const contentLength = Number(response.headers['content-length']);
+      const contentRangeTotal = Number(response.headers['content-range']?.match(/\/(\d+)$/)?.[1]);
+      item.totalBytes = Number.isFinite(contentRangeTotal)
+        ? contentRangeTotal
+        : Number.isFinite(contentLength) ? offset + contentLength : 0;
+      item.receivedBytes = append ? offset : 0;
+      const output = fs.createWriteStream(`${item.savePath}.part`, { flags: append ? 'a' : 'w' });
+      const progress = new Transform({
+        transform: (chunk, _encoding, callback) => {
+          item.receivedBytes += chunk.length;
+          callback(null, chunk);
+        }
+      });
+      await pipeline(response, progress, output);
+      item.receivedBytes = await getFileSize(`${item.savePath}.part`);
+      if (item.totalBytes > 0 && item.receivedBytes !== item.totalBytes) {
+        throw new Error(`انقطع الاتصال قبل اكتمال الملف (${item.receivedBytes}/${item.totalBytes} بايت).`);
+      }
+      break;
     }
   }
 
@@ -405,7 +565,8 @@ class DownloadManager {
         }
         resolve({ response, request });
       });
-      control.request = request;
+      control.requests.add(request);
+      request.once('close', () => control.requests.delete(request));
       request.setTimeout(30_000, () => request.destroy(new Error('انتهت مهلة الاتصال بالخادم.')));
       request.once('error', reject);
     });
@@ -413,9 +574,15 @@ class DownloadManager {
 
   async getPartialSize(item) {
     try {
-      return (await fsp.stat(`${item.savePath}.part`)).size;
+      const directory = path.dirname(item.savePath);
+      const prefix = `${path.basename(item.savePath)}.part.segment-`;
+      const files = await fsp.readdir(directory);
+      const segments = await Promise.all(files
+        .filter((file) => file.startsWith(prefix))
+        .map((file) => getFileSize(path.join(directory, file))));
+      return await getFileSize(`${item.savePath}.part`) + segments.reduce((size, value) => size + value, 0);
     } catch (error) {
-      if (error.code === 'ENOENT') return 0;
+      if (error.code === 'ENOENT' || error.code === 'ENOTDIR') return 0;
       throw error;
     }
   }
@@ -424,11 +591,9 @@ class DownloadManager {
     try {
       await fsp.unlink(`${item.savePath}.part`);
     } catch (error) {
-      if (error.code === 'ENOTDIR') {
-        throw new Error(`جزء من مسار التنزيل ليس مجلدًا: ${resolvedFolder}`);
-      }
       if (error.code !== 'ENOENT') throw error;
     }
+    await this.removeSegmentParts(item);
   }
 
   reportProgress() {
@@ -475,12 +640,36 @@ async function ensureDirectory(folder) {
     const info = await fsp.stat(resolvedFolder);
     if (!info.isDirectory()) throw new Error(`مسار التنزيل ليس مجلدًا: ${folder}`);
   } catch (error) {
+    if (error.code === 'ENOTDIR') {
+      throw new Error(`جزء من مسار التنزيل ليس مجلدًا: ${resolvedFolder}`);
+    }
     if (error.code !== 'ENOENT') throw error;
     if (path.normalize(resolvedFolder) === path.normalize(path.parse(resolvedFolder).root)) {
       throw new Error(`قرص الحفظ غير متاح: ${resolvedFolder}. اختر مجلدًا على قرص متصل وقابل للكتابة.`);
     }
     await fsp.mkdir(resolvedFolder, { recursive: true });
   }
+}
+
+function destroyRequests(control) {
+  for (const request of control.requests || []) request.destroy();
+}
+
+async function getFileSize(file) {
+  try {
+    return (await fsp.stat(file)).size;
+  } catch (error) {
+    if (error.code === 'ENOENT') return 0;
+    throw error;
+  }
+}
+
+function rangeValidatorHeaders(validators) {
+  if (validators.etag && !validators.etag.startsWith('W/')) {
+    return { 'If-Range': validators.etag };
+  }
+  if (validators.lastModified) return { 'If-Range': validators.lastModified };
+  return {};
 }
 
 function cleanFileName(value) {

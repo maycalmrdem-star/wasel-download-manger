@@ -20,7 +20,14 @@ window.WaselIcons.hydrate();
 
 const state = {
   downloads: [],
-  settings: { outputFolder: '', theme: 'dark', language: 'ara', maxActiveDownloads: 3 },
+  settings: {
+    outputFolder: '',
+    theme: 'dark',
+    language: 'ara',
+    maxActiveDownloads: 3,
+    connectionsPerDownload: 4,
+    startWithWindows: false
+  },
   locale: { name: 'العربية', locale: 'ar', direction: 'rtl', translations: {} },
   filter: 'all',
   category: '',
@@ -162,19 +169,6 @@ function filterItems() {
     }
     return true;
   });
-  window.wasel.onUpdateStatus(({ key, detail, type }) => {
-    const prefix = translate(key);
-    const suffix = key === 'يتوفر تحديث واصل'
-      ? ` ${detail} ${translate('وسيتم تنزيله تلقائيًا.')}`
-      : key === 'تنزيل التحديث'
-        ? ` ${detail}%`
-        : key === 'اكتمل تنزيل واصل'
-          ? ` ${detail}. ${translate('اختر إعادة التشغيل لتثبيته.')}`
-          : key === 'تعذر التحقق من التحديث'
-            ? `: ${detail}`
-            : '';
-    showToast(`${prefix}${suffix}`, type);
-  });
   items.sort((a, b) => {
     let left = a[state.sort];
     let right = b[state.sort];
@@ -187,6 +181,20 @@ function filterItems() {
   });
   return items;
 }
+
+window.wasel.onUpdateStatus(({ key, detail, type }) => {
+  const prefix = translate(key);
+  const suffix = key === 'يتوفر تحديث واصل'
+    ? ` ${detail} ${translate('وسيتم تنزيله تلقائيًا.')}`
+    : key === 'تنزيل التحديث'
+      ? ` ${detail}%`
+      : key === 'اكتمل تنزيل واصل'
+        ? ` ${detail}. ${translate('اختر إعادة التشغيل لتثبيته.')}`
+        : key === 'تعذر التحقق من التحديث'
+          ? `: ${detail}`
+          : '';
+  showToast(`${prefix}${suffix}`, type);
+});
 
 function selectedItems() {
   return state.downloads.filter((item) => state.selected.has(item.id));
@@ -353,6 +361,8 @@ function showDialog(id) {
     document.getElementById('languageSelect').value = state.settings.language || 'ara';
     document.getElementById('themeSelect').value = state.settings.theme;
     document.getElementById('concurrencySelect').value = String(state.settings.maxActiveDownloads);
+    document.getElementById('connectionsPerDownloadSelect').value = String(state.settings.connectionsPerDownload);
+    document.getElementById('startWithWindows').checked = Boolean(state.settings.startWithWindows);
     document.getElementById('optionsFolder').textContent = state.settings.outputFolder;
   }
   if (id === 'scheduleDialog') updateScheduleNotice();
@@ -396,7 +406,9 @@ function updateProgressDialog() {
   document.getElementById('progressReceived').textContent = `${formatBytes(item.receivedBytes)} (${amount}%)`;
   document.getElementById('progressRate').textContent = formatRate(item.speed);
   document.getElementById('progressEta').textContent = item.status === 'downloading' ? formatEta(item) : '—';
-  document.getElementById('progressBar').style.width = `${amount}%`;
+  const progressBar = document.getElementById('progressBar');
+  progressBar.style.width = `${amount}%`;
+  progressBar.parentElement.setAttribute('aria-valuenow', String(amount));
   document.getElementById('progressPercent').textContent = `${amount}%`;
   document.getElementById('detailsPath').textContent = item.savePath;
   document.getElementById('detailsPath').title = item.savePath;
@@ -776,7 +788,9 @@ document.getElementById('saveOptions').addEventListener('click', async () => {
   const result = await safeCall(() => window.wasel.updateSettings({
     theme: document.getElementById('themeSelect').value,
     language: document.getElementById('languageSelect').value,
-    maxActiveDownloads: Number(document.getElementById('concurrencySelect').value)
+    maxActiveDownloads: Number(document.getElementById('concurrencySelect').value),
+    connectionsPerDownload: Number(document.getElementById('connectionsPerDownloadSelect').value),
+    startWithWindows: document.getElementById('startWithWindows').checked
   }), 'تم حفظ الإعدادات.');
   if (result !== false) {
     try {

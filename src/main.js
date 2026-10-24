@@ -15,6 +15,7 @@ let protocolQueue = Promise.resolve();
 let tray;
 let updateCheckTimer;
 let lastUpdateProgress = 0;
+const launchHidden = process.argv.includes('--hidden');
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 
 function broadcast(channel, payload) {
@@ -82,6 +83,7 @@ function createWindow() {
     backgroundColor: '#171d24',
     title: 'واصل — مدير التحميلات',
     frame: false,
+    show: !launchHidden,
     icon: path.join(__dirname, '..', 'assets', 'wasel.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -91,6 +93,9 @@ function createWindow() {
     }
   });
 
+  if (!launchHidden) {
+    mainWindow.once('ready-to-show', () => mainWindow?.show());
+  }
   mainWindow.on('close', (event) => {
     if (!isClosing) {
       event.preventDefault();
@@ -217,6 +222,21 @@ function startUpdateChecks() {
   updateCheckTimer.unref();
 }
 
+function setWindowsStartup(enabled) {
+  if (typeof enabled !== 'boolean') throw new Error('إعداد بدء التشغيل مع Windows غير صالح.');
+  if (process.platform !== 'win32') {
+    throw new Error('بدء التشغيل التلقائي مدعوم حاليًا على Windows فقط.');
+  }
+  if (!app.isPackaged) {
+    throw new Error('ابدأ تشغيل واصل من النسخة المثبتة لتفعيل بدء التشغيل مع Windows.');
+  }
+  app.setLoginItemSettings({
+    openAtLogin: enabled,
+    path: process.execPath,
+    args: ['--hidden']
+  });
+}
+
 function registerIpc() {
   ipcMain.handle('languages:list', async () => {
     const resources = await Promise.all(SUPPORTED_LANGUAGES.map(async (code) => {
@@ -256,7 +276,21 @@ function registerIpc() {
   ipcMain.handle('downloads:pause-all', () => manager.pauseAll());
   ipcMain.handle('downloads:resume-all', () => manager.resumeAll());
   ipcMain.handle('downloads:stop-all', () => manager.pauseAll());
-  ipcMain.handle('downloads:update-settings', (_event, settings) => manager.updateSettings(settings));
+  ipcMain.handle('downloads:update-settings', async (_event, settings) => {
+    const previous = manager.getState().settings.startWithWindows;
+    const changesStartup = settings.startWithWindows !== undefined
+      && settings.startWithWindows !== previous;
+    if (changesStartup && typeof settings.startWithWindows !== 'boolean') {
+      throw new Error('إعداد بدء التشغيل مع Windows غير صالح.');
+    }
+    if (changesStartup) setWindowsStartup(settings.startWithWindows);
+    try {
+      return await manager.updateSettings(settings);
+    } catch (error) {
+      if (changesStartup) setWindowsStartup(previous);
+      throw error;
+    }
+  });
   ipcMain.handle('downloads:choose-folder', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
       properties: ['openDirectory'],
@@ -357,6 +391,9 @@ app.whenReady().then(async () => {
     }
   });
   await manager.initialize();
+  if (manager.getState().settings.startWithWindows && app.isPackaged) {
+    setWindowsStartup(true);
+  }
   registerIpc();
   createWindow();
   createTray();

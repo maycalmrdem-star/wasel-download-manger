@@ -197,14 +197,22 @@ test('ships a minimal-permission cross-browser extension and dedicated icon styl
   assert.match(html, /href="\.\/ui-enhancements\.css"/);
   assert.match(html, /data-command="extension-guide"/);
   assert.match(html, /class="window-titlebar"/);
+  assert.match(html, /id="connectionsPerDownloadSelect"/);
+  assert.match(html, /id="startWithWindows"/);
+  assert.match(html, /role="progressbar"/);
   assert.match(html, /data-window-action="minimize"/);
   assert.match(html, /data-window-action="maximize"/);
   assert.match(html, /data-window-action="close"/);
   assert.match(renderer, /querySelectorAll\('\.menu-trigger\[data-menu\]'\)/);
   assert.match(renderer, /onWindowMaximized\(updateMaximizeControl\)/);
+  assert.equal([...renderer.matchAll(/onUpdateStatus\(/g)].length, 1, 'Updater status listener is registered only once');
+  assert.match(renderer, /connectionsPerDownload: Number/);
+  assert.match(renderer, /startWithWindows: document\.getElementById\('startWithWindows'\)\.checked/);
   assert.match(renderer, /addUrls\(values\.join\('\\n'\), \{ startImmediately: true \}\)/);
   assert.match(renderer, /new Set\(\[/);
   assert.match(appMain, /frame: false/);
+  assert.match(appMain, /app\.setLoginItemSettings\(/);
+  assert.match(appMain, /args: \['--hidden'\]/);
   assert.match(appMain, /autoUpdater\.checkForUpdates\(\)/);
   assert.match(appMain, /process\.env\.GH_TOKEN/);
   assert.match(appMain, /ipcMain\.handle\('app:get-version', \(\) => app\.getVersion\(\)\)/);
@@ -218,6 +226,8 @@ test('ships a minimal-permission cross-browser extension and dedicated icon styl
   assert.match(icons, /software: '<rect x="3" y="4" width="18" height="13"/);
   assert.match(enhancementStyles, /:root\s*\{\s*--chrome: #171d24/);
   assert.match(enhancementStyles, /body\[data-theme="light"\]/);
+  assert.match(enhancementStyles, /@keyframes progress-sheen/);
+  assert.match(enhancementStyles, /prefers-reduced-motion: reduce/);
   assert.match(installGuide, /chrome:\/\/extensions/);
   assert.match(installGuide, /edge:\/\/extensions/);
   assert.match(installGuide, /about:debugging/);
@@ -257,6 +267,78 @@ test('downloads an HTTP file, records it, and persists its completed state', asy
   const saved = JSON.parse(await fs.readFile(path.join(tempDirectory, 'library.json'), 'utf8'));
   assert.equal(saved.items[0].status, 'completed');
   await manager.shutdown();
+});
+
+test('downloads byte ranges in parallel and assembles the original file without corruption', async () => {
+  const content = Buffer.alloc(5 * 1024 * 1024 + 137);
+  for (let index = 0; index < content.length; index += 1) content[index] = index % 251;
+  const receivedRanges = [];
+  let activeRequests = 0;
+  let maximumConcurrentRequests = 0;
+  const rangeServer = http.createServer((request, response) => {
+    const range = request.headers.range?.match(/^bytes=(\d+)-(\d+)$/);
+    if (!range) {
+      response.writeHead(200, { 'Content-Length': content.length });
+      response.end(content);
+      return;
+    }
+    const start = Number(range[1]);
+    const end = Math.min(Number(range[2]), content.length - 1);
+    receivedRanges.push([start, end]);
+    activeRequests += 1;
+    maximumConcurrentRequests = Math.max(maximumConcurrentRequests, activeRequests);
+    let cursor = start;
+    let writeTimer;
+    response.once('close', () => {
+      clearTimeout(writeTimer);
+      activeRequests -= 1;
+    });
+    setTimeout(() => {
+      if (response.destroyed) return;
+      response.writeHead(206, {
+        'Content-Length': end - start + 1,
+        'Content-Range': `bytes ${start}-${end}/${content.length}`,
+        ETag: '"wasel-range-test"'
+      });
+      const writeNext = () => {
+        if (response.destroyed) return;
+        const next = Math.min(cursor + 64 * 1024, end + 1);
+        response.write(content.subarray(cursor, next));
+        cursor = next;
+        if (cursor > end) response.end();
+        else writeTimer = setTimeout(writeNext, 4);
+      };
+      writeNext();
+    }, 30);
+  });
+  await new Promise((resolve) => rangeServer.listen(0, '127.0.0.1', resolve));
+  const manager = new DownloadManager({
+    dataFile: path.join(tempDirectory, 'parallel-library.json'),
+    defaultFolder: path.join(tempDirectory, 'parallel-files')
+  });
+
+  try {
+    await manager.initialize();
+    await manager.updateSettings({ connectionsPerDownload: 4 });
+    const url = `http://127.0.0.1:${rangeServer.address().port}/large.bin`;
+    const item = await manager.add({ url, fileName: 'parallel.bin' });
+    await waitFor(() => manager.getDownload(item.id)?.receivedBytes > 0);
+    await manager.pause(item.id);
+    assert.equal(manager.getDownload(item.id).status, 'paused');
+    assert.ok(manager.getDownload(item.id).receivedBytes > 0, 'Completed range segments remain resumable after pausing');
+    await manager.resume(item.id);
+    await waitFor(() => ['completed', 'error'].includes(manager.getDownload(item.id)?.status));
+
+    assert.equal(manager.getDownload(item.id).status, 'completed', manager.getDownload(item.id).error);
+    assert.ok(maximumConcurrentRequests >= 2, `Expected parallel range requests; max=${maximumConcurrentRequests}`);
+    assert.ok(receivedRanges.some(([start, end]) => start === 0 && end === 0), 'Range support is probed before parallel download');
+    assert.ok(receivedRanges.some(([start]) => start > 0), 'The file is split into non-overlapping byte ranges');
+    const downloaded = await fs.readFile(item.savePath);
+    assert.deepEqual(downloaded, content);
+  } finally {
+    await manager.shutdown();
+    await new Promise((resolve) => rangeServer.close(resolve));
+  }
 });
 
 test('reports a blocked save path on the download row without losing the original path error', async () => {
@@ -312,9 +394,16 @@ test('persists theme and concurrency settings and pauses all active downloads sa
   const rootSettings = await manager.setOutputFolder(rootFolder);
   assert.equal(rootSettings.outputFolder, rootFolder);
   await manager.setOutputFolder(fallbackFolder);
-  await manager.updateSettings({ theme: 'dark', maxActiveDownloads: 5 });
+  await manager.updateSettings({
+    theme: 'dark',
+    maxActiveDownloads: 5,
+    connectionsPerDownload: 8,
+    startWithWindows: true
+  });
   assert.equal(manager.getState().settings.theme, 'dark');
   assert.equal(manager.getState().maxActiveDownloads, 5);
+  assert.equal(manager.getState().settings.connectionsPerDownload, 8);
+  assert.equal(manager.getState().settings.startWithWindows, true);
   await manager.updateSettings({ language: 'fra' });
   assert.equal(manager.getState().settings.language, 'fra');
   await assert.rejects(manager.updateSettings({ language: 'not-a-language' }), /لغة الواجهة المحددة غير مدعومة/);
@@ -337,6 +426,8 @@ test('persists theme and concurrency settings and pauses all active downloads sa
   assert.equal(restored.getState().settings.theme, 'dark');
   assert.equal(restored.getState().settings.language, 'fra');
   assert.equal(restored.getState().settings.maxActiveDownloads, 5);
+  assert.equal(restored.getState().settings.connectionsPerDownload, 8);
+  assert.equal(restored.getState().settings.startWithWindows, true);
   assert.equal(restored.getDownload(item.id).status, 'paused');
   await restored.shutdown();
 });

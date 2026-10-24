@@ -148,7 +148,7 @@
             <div class="progress-field"><span>تم تنزيل</span><b id="progressReceived"></b></div>
             <div class="progress-field"><span>معدل النقل</span><b id="progressRate"></b></div>
             <div class="progress-field"><span>الوقت المتبقي</span><b id="progressEta"></b></div>
-            <div class="classic-progress"><span id="progressBar"></span></div>
+            <div class="classic-progress" role="progressbar" aria-label="تقدم التنزيل" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="progressBar"></span></div>
             <div class="progress-percent" id="progressPercent">0%</div>
           </div>
           <div class="progress-view details-view" id="progressDetailsView" hidden><div class="details-line"><span>ملف الحفظ</span><b id="detailsPath"></b></div><div class="details-line"><span>التصنيف</span><b id="detailsCategory"></b></div><div class="details-line"><span>إمكانية الاستئناف</span><b id="detailsResume"></b></div><div class="connection-log" id="connectionLog"></div></div>
@@ -163,7 +163,9 @@
           <label class="settings-row"><span>لغة الواجهة</span><select id="languageSelect"></select></label>
           <label class="settings-row"><span>المظهر</span><select id="themeSelect"><option value="light">فاتح</option><option value="dark">داكن</option></select></label>
           <label class="settings-row"><span>الحد الأقصى للتنزيلات المتزامنة</span><select id="concurrencySelect"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select></label>
+          <label class="settings-row"><span>الاتصالات المتوازية لكل تنزيل</span><select id="connectionsPerDownloadSelect"><option value="1">1 — اتصال واحد</option><option value="2">2 — متوازن</option><option value="4">4 — سريع</option><option value="8">8 — أقصى سرعة</option></select></label>
           <div class="settings-row folder-setting"><span>مجلد التنزيل</span><span id="optionsFolder"></span><button id="optionsBrowse">تغيير...</button></div>
+          <label class="settings-toggle-row" for="startWithWindows"><span><strong>بدء واصل مع Windows</strong><small>إظهار التطبيق في تبويب Startup وبدؤه مخفيًا قرب الساعة</small></span><input id="startWithWindows" type="checkbox"><span class="settings-toggle-switch" aria-hidden="true"></span></label>
           <div class="dialog-actions"><span class="action-spacer"></span><button class="classic-button" data-close-dialog>إلغاء</button><button class="classic-button primary-classic" id="saveOptions">موافق</button></div>
         </div>
       </section>
