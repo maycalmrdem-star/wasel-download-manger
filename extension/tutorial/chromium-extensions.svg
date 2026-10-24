@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 400" role="img" aria-labelledby="title desc">
+  <title id="title">Chromium extensions setup illustration</title>
+  <desc id="desc">Illustration of the extensions page with developer mode and load unpacked highlighted.</desc>
+  <rect width="960" height="400" rx="24" fill="#151a21"/>
+  <rect x="1" y="1" width="958" height="398" rx="23" fill="none" stroke="#34404d" stroke-width="2"/>
+  <rect x="0" y="0" width="960" height="56" rx="24" fill="#202832"/>
+  <path d="M0 30v26h960V30" fill="#202832"/>
+  <circle cx="31" cy="29" r="8" fill="#f06b66"/><circle cx="57" cy="29" r="8" fill="#efbb4e"/><circle cx="83" cy="29" r="8" fill="#50bd77"/>
+  <text x="122" y="37" fill="#e6edf3" font-family="Segoe UI,Arial,sans-serif" font-size="20">Extensions</text>
+  <rect x="708" y="15" width="218" height="28" rx="14" fill="#11161c" stroke="#34404d"/>
+  <text x="735" y="34" fill="#8fa2b5" font-family="Segoe UI,Arial,sans-serif" font-size="13">chrome://extensions</text>
+  <text x="40" y="98" fill="#e6edf3" font-family="Segoe UI,Arial,sans-serif" font-size="23" font-weight="600">Manage extensions</text>
+  <rect x="40" y="119" width="878" height="63" rx="12" fill="#202832" stroke="#35414e"/>
+  <text x="65" y="147" fill="#e6edf3" font-family="Segoe UI,Arial,sans-serif" font-size="16">Developer mode</text>
+  <text x="65" y="168" fill="#9aa9b8" font-family="Segoe UI,Arial,sans-serif" font-size="13">Turn this on to load Wasel from your project folder.</text>
+  <rect x="835" y="136" width="54" height="28" rx="14" fill="#176b87"/>
+  <circle cx="874" cy="150" r="10" fill="#fff"/>
+  <rect x="36" y="112" width="886" height="77" rx="15" fill="none" stroke="#66b9cf" stroke-width="4"/>
+  <rect x="40" y="211" width="220" height="42" rx="10" fill="#176b87"/>
+  <text x="72" y="238" fill="#fff" font-family="Segoe UI,Arial,sans-serif" font-size="15" font-weight="600">Load unpacked</text>
+  <rect x="28" y="199" width="244" height="66" rx="14" fill="none" stroke="#66b9cf" stroke-width="4"/>
+  <rect x="40" y="283" width="878" height="82" rx="12" fill="#202832" stroke="#35414e"/>
+  <rect x="59" y="302" width="45" height="45" rx="12" fill="#176b87"/>
+  <path d="M82 311v21m-9-9 9 9 9-9m-16 14h14" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="122" y="319" fill="#e6edf3" font-family="Segoe UI,Arial,sans-serif" font-size="16" font-weight="600">Wasel Download Manager</text>
+  <text x="122" y="342" fill="#9aa9b8" font-family="Segoe UI,Arial,sans-serif" font-size="13">Choose the extension folder after clicking Load unpacked.</text>
+</svg>

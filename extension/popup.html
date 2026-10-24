@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Send to Wasel</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="popup">
+      <header class="brand">
+        <img class="brand-mark" src="icons/icon48.png" alt="">
+        <div><strong>Wasel</strong><span>Download Manager</span></div>
+      </header>
+      <label for="downloadUrl">Web address</label>
+      <textarea id="downloadUrl" rows="3" spellcheck="false" placeholder="https://example.com/file.zip"></textarea>
+      <p id="message" role="status" aria-live="polite">The active page address is filled in automatically.</p>
+      <button id="send" type="button">Send to Wasel</button>
+      <label class="capture-setting" for="captureDownloads">
+        <input id="captureDownloads" type="checkbox">
+        <span>Send browser downloads to Wasel automatically</span>
+      </label>
+      <p id="captureStatus" role="status" aria-live="polite"></p>
+      <footer>Wasel asks before adding captured links. You can turn capture off here.</footer>
+    </main>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

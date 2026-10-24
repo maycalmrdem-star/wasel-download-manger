@@ -1,0 +1,39 @@
+:root {
+  color-scheme: light dark;
+  font: 13px/1.45 "Segoe UI", system-ui, sans-serif;
+  --accent: #176b87;
+  --border: #d6dee7;
+  --surface: #ffffff;
+  --text: #1c2733;
+  --muted: #687787;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --accent: #66b9cf;
+    --border: #35414e;
+    --surface: #202832;
+    --text: #e6edf3;
+    --muted: #9aa9b8;
+  }
+}
+
+* { box-sizing: border-box; }
+body { width: 340px; margin: 0; background: var(--surface); color: var(--text); }
+.popup { display: grid; gap: 10px; padding: 16px; }
+.brand { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.brand-mark { display: block; width: 36px; height: 36px; border-radius: 11px; }
+.brand div { display: grid; }
+.brand strong { font-size: 15px; }
+.brand div span, footer { color: var(--muted); font-size: 11px; }
+label { font-weight: 600; }
+textarea { width: 100%; min-height: 66px; resize: vertical; border: 1px solid var(--border); border-radius: 7px; padding: 8px; background: var(--surface); color: var(--text); font: 12px/1.4 Consolas, monospace; }
+textarea:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+p { min-height: 18px; margin: 0; color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+p.error { color: #c62828; }
+button { min-height: 36px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+button:hover { filter: brightness(1.08); }
+.capture-setting { display: flex; align-items: flex-start; gap: 8px; padding: 9px; border: 1px solid var(--border); border-radius: 7px; font-size: 11px; cursor: pointer; }
+.capture-setting input { flex: 0 0 auto; margin: 2px 0 0; accent-color: var(--accent); }
+#captureStatus { min-height: 0; }
+footer { text-align: center; }

@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark light">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:; font-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+    <title>واصل — مدير التحميلات</title>
+    <link rel="icon" type="image/svg+xml" href="../assets/wasel.svg">
+    <link rel="stylesheet" href="./styles.css">
+    <link rel="stylesheet" href="./icons.css">
+    <link rel="stylesheet" href="./ui-enhancements.css">
+  </head>
+  <body>
+    <div class="app-frame">
+      <header class="window-titlebar">
+        <div class="window-titlebar-brand" aria-label="واصل — مدير التحميلات">
+          <img src="../assets/wasel.svg" alt="">
+          <span>واصل — مدير التحميلات</span>
+        </div>
+        <div class="window-controls">
+          <button class="window-control" type="button" data-window-action="minimize" aria-label="تصغير النافذة" title="تصغير">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10"></path></svg>
+          </button>
+          <button class="window-control maximize-control" type="button" data-window-action="maximize" aria-label="تكبير النافذة" title="تكبير">
+            <svg class="maximize-icon" viewBox="0 0 16 16" aria-hidden="true"><rect x="3.5" y="3.5" width="9" height="9" rx=".5"></rect></svg>
+            <svg class="restore-icon" viewBox="0 0 16 16" aria-hidden="true" hidden><path d="M5 5V3.5h7.5V11H11M4 6.5h7.5V13H4z"></path></svg>
+          </button>
+          <button class="window-control close-control" type="button" data-window-action="close" aria-label="إخفاء النافذة إلى جوار الساعة" title="إخفاء إلى علبة النظام">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"></path></svg>
+          </button>
+        </div>
+      </header>
+      <nav class="menu-bar" aria-label="القائمة الرئيسية">
+        <div class="menu-entry"><button class="menu-trigger" data-menu="tasks">المهام</button><div class="menu-popup">
+          <button data-command="add">إضافة تنزيل جديد... <kbd>Ctrl+N</kbd></button>
+          <button data-command="paste">إضافة رابط من الحافظة <kbd>Ctrl+Shift+V</kbd></button>
+          <hr><button data-command="export">تصدير قائمة التنزيلات...</button><button data-command="import">استيراد قائمة التنزيلات...</button><hr><button data-command="exit">خروج</button>
+        </div></div>
+        <div class="menu-entry"><button class="menu-trigger" data-menu="file">ملف</button><div class="menu-popup">
+          <button data-command="open">فتح الملف المحدد</button><button data-command="show">فتح مجلد الملف المحدد</button><button data-command="copy-url">نسخ رابط التنزيل</button><hr><button data-command="delete">حذف من القائمة... <kbd>Del</kbd></button>
+        </div></div>
+        <div class="menu-entry"><button class="menu-trigger" data-menu="downloads">التنزيلات</button><div class="menu-popup">
+          <button data-command="resume-selected">استئناف المحدد <kbd>Ctrl+R</kbd></button><button data-command="pause-selected">إيقاف مؤقت <kbd>Ctrl+P</kbd></button><button data-command="stop-all">إلغاء كل التنزيلات <kbd>Ctrl+Shift+S</kbd></button><hr><button data-command="clear-completed">حذف المكتملة من القائمة...</button><button data-command="scheduler">جدولة بدء التنزيلات...</button>
+        </div></div>
+        <div class="menu-entry"><button class="menu-trigger" data-menu="view">عرض</button><div class="menu-popup">
+          <button data-command="toggle-categories">إظهار/إخفاء التصنيفات <kbd>F4</kbd></button><button data-command="toggle-status">إظهار/إخفاء شريط الحالة</button><hr><button data-command="theme-light">المظهر الفاتح</button><button data-command="theme-dark">المظهر الداكن</button><button data-command="refresh">تحديث القائمة <kbd>F5</kbd></button>
+        </div></div>
+        <div class="menu-entry"><button class="menu-trigger" data-menu="help">مساعدة</button><div class="menu-popup">
+          <button data-command="shortcuts">اختصارات لوحة المفاتيح</button><button data-command="check-updates">التحقق من تحديثات واصل</button><button data-command="help">دليل الاستخدام</button><button data-command="extension-guide">تثبيت إضافة المتصفح</button><button data-command="about">حول واصل</button>
+        </div></div>
+        <div class="menu-entry"><button class="menu-trigger" data-menu="license">التسجيل</button><div class="menu-popup">
+          <button data-command="license">الترخيص مفتوح المصدر</button>
+        </div></div>
+        <div class="menu-entry"><button class="menu-trigger browser-guide-trigger" data-command="extension-guide"><span class="browser-menu-icon" data-icon="browser"></span>إضافة المتصفح</button></div>
+      </nav>
+
+      <section class="toolbar" aria-label="أدوات التنزيل">
+        <button class="tool-button" data-command="add" title="إضافة تنزيل جديد (Ctrl+N)"><span class="tool-icon add-icon" data-icon="add"></span><span>إضافة رابط</span></button>
+        <button class="tool-button" data-command="resume-selected" title="استئناف المحدد (Ctrl+R)"><span class="tool-icon resume-icon" data-icon="resume"></span><span>استئناف</span></button>
+        <button class="tool-button" data-command="pause-selected" title="إيقاف المحدد مؤقتًا (Ctrl+P)"><span class="tool-icon pause-icon" data-icon="pause"></span><span>إيقاف مؤقت</span></button>
+        <button class="tool-button" data-command="stop-all" title="إلغاء كل التنزيلات (Ctrl+Shift+S)"><span class="tool-icon stop-icon" data-icon="stop"></span><span>إيقاف الكل</span></button>
+        <span class="toolbar-separator"></span>
+        <button class="tool-button" data-command="delete" title="حذف المحدد من القائمة (Del)"><span class="tool-icon delete-icon" data-icon="delete"></span><span>حذف</span></button>
+        <button class="tool-button" data-command="clear-completed" title="إزالة الملفات المكتملة من القائمة"><span class="tool-icon clear-icon" data-icon="clear"></span><span>حذف المكتملة</span></button>
+        <span class="toolbar-separator"></span>
+        <button class="tool-button" data-command="options" title="إعدادات التطبيق"><span class="tool-icon options-icon" data-icon="settings"></span><span>خيارات</span></button>
+        <button class="tool-button" data-command="scheduler" title="جدولة بدء التنزيلات"><span class="tool-icon scheduler-icon" data-icon="schedule"></span><span>الجدولة</span></button>
+        <button class="tool-button" data-command="export" title="تصدير قائمة التنزيلات"><span class="tool-icon export-icon" data-icon="export"></span><span>تصدير</span></button>
+        <button class="tool-button" data-command="import" title="استيراد قائمة التنزيلات"><span class="tool-icon import-icon" data-icon="import"></span><span>استيراد</span></button>
+        <div class="toolbar-spacer"></div>
+        <label class="toolbar-search"><span class="search-icon" data-icon="search"></span><input id="searchInput" type="search" placeholder="بحث في التنزيلات..."><kbd>Ctrl+F</kbd></label>
+      </section>
+
+      <main class="main-area">
+        <aside class="category-panel" id="categoryPanel">
+          <div class="panel-title"><strong>التصنيفات</strong><button id="hideCategories" title="إخفاء لوحة التصنيفات">×</button></div>
+          <div class="category-tree">
+            <button class="tree-item selected" data-filter="all"><span class="tree-chevron">▾</span><span class="tree-icon" data-icon="queue"></span><span>كل التنزيلات</span><span class="tree-count" id="countAll">0</span></button>
+            <button class="tree-item tree-child" data-category="archives"><span class="tree-icon category-archive" data-icon="archive"></span><span>ملفات مضغوطة</span><span class="tree-count" data-count-category="archives">0</span></button>
+            <button class="tree-item tree-child" data-category="documents"><span class="tree-icon category-document" data-icon="document"></span><span>مستندات</span><span class="tree-count" data-count-category="documents">0</span></button>
+            <button class="tree-item tree-child" data-category="media"><span class="tree-icon category-media" data-icon="media"></span><span>موسيقى وفيديو</span><span class="tree-count" data-count-category="media">0</span></button>
+            <button class="tree-item tree-child" data-category="software"><span class="tree-icon category-program" data-icon="software"></span><span>برامج</span><span class="tree-count" data-count-category="software">0</span></button>
+            <button class="tree-item tree-child" data-category="images"><span class="tree-icon category-image" data-icon="image"></span><span>صور</span><span class="tree-count" data-count-category="images">0</span></button>
+            <button class="tree-item" data-filter="unfinished"><span class="tree-chevron"></span><span class="tree-icon tree-blue" data-icon="schedule"></span><span>غير مكتملة</span><span class="tree-count" id="countUnfinished">0</span></button>
+            <button class="tree-item" data-filter="completed"><span class="tree-chevron"></span><span class="tree-icon tree-green" data-icon="clear"></span><span>مكتملة</span><span class="tree-count" id="countCompleted">0</span></button>
+            <div class="tree-section-label">قوائم التنزيل</div>
+            <button class="tree-item" data-filter="all"><span class="tree-chevron">▾</span><span class="tree-icon" data-icon="queue"></span><span>قائمة التنزيل الرئيسية</span><span class="tree-count" id="countQueue">0</span></button>
+            <div class="tree-note">التنزيلات النشطة والمتوقفة تظهر هنا.</div>
+          </div>
+          <div class="tree-footer"><span class="online-dot"></span>محرك التنزيل جاهز</div>
+        </aside>
+
+        <section class="table-panel">
+          <div class="table-toolbar">
+            <div class="table-heading"><span class="table-folder-icon" data-icon="folder"></span><strong id="tableTitle">كل التنزيلات</strong><span class="table-total" id="tableTotal">0</span></div>
+            <div class="table-actions"><button data-command="open-folder" title="فتح مجلد التنزيلات">فتح مجلد التنزيلات</button><button data-command="refresh" title="تحديث">⟳</button></div>
+          </div>
+          <div class="table-wrap" id="tableWrap">
+            <table class="download-table">
+              <thead><tr>
+                <th class="select-column"><input id="selectAll" type="checkbox" aria-label="تحديد الكل"></th>
+                <th data-sort="fileName" class="name-column">اسم الملف <span class="sort-indicator">↕</span></th>
+                <th class="queue-column" title="قائمة التنزيل">≡</th>
+                <th data-sort="totalBytes" class="size-column">الحجم <span class="sort-indicator">↕</span></th>
+                <th data-sort="status" class="status-column">الحالة <span class="sort-indicator">↕</span></th>
+                <th class="time-column">الوقت المتبقي</th>
+                <th data-sort="speed" class="rate-column">معدل النقل <span class="sort-indicator">↕</span></th>
+                <th data-sort="createdAt" class="date-column">آخر محاولة <span class="sort-indicator">↕</span></th>
+                <th class="description-column">الوصف</th>
+              </tr></thead>
+              <tbody id="downloadRows"></tbody>
+            </table>
+            <div class="empty-state" id="emptyState"><div class="empty-file" data-icon="download"></div><strong>لا توجد تنزيلات لعرضها</strong><span>أضف رابطًا جديدًا أو اسحب رابط تنزيل إلى هذه النافذة.</span><button class="classic-button" data-command="add">إضافة رابط...</button></div>
+          </div>
+          <div class="table-footer"><span id="selectionSummary">لم يتم تحديد أي ملف</span><span>انقر بزر الفأرة الأيمن لعرض إجراءات الملف</span></div>
+        </section>
+      </main>
+
+      <footer class="status-bar" id="statusBar">
+        <span id="statusCounts">0 تنزيل · 0 نشط · 0 مكتمل</span><span class="status-separator"></span>
+        <span id="diskStatus">مجلد الحفظ: <b id="statusFolder">—</b></span><span class="status-spacer"></span>
+        <span id="statusSpeed">↓ 0 KB/s</span><span class="status-limiter" id="statusLimiter">بلا حدود</span>
+      </footer>
+    </div>
+
+    <div class="modal-backdrop" id="modalBackdrop" hidden>
+      <section class="dialog add-dialog" id="addDialog" role="dialog" aria-modal="true" aria-labelledby="addDialogTitle" hidden>
+        <header class="dialog-titlebar"><strong id="addDialogTitle">إضافة تنزيل جديد</strong><button type="button" data-close-dialog aria-label="إغلاق"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"></path></svg></button></header>
+        <form id="downloadForm" class="dialog-content">
+          <label for="urlInput">العنوان:</label><textarea id="urlInput" rows="3" placeholder="https://example.com/file.zip" required></textarea>
+          <div class="inline-error" id="urlError" aria-live="polite"></div>
+          <div class="form-row"><label for="fileNameInput">اسم الملف:</label><input id="fileNameInput" type="text" placeholder="استنتاج تلقائي من الرابط"></div>
+          <div class="form-row"><label>حفظ في:</label><div class="folder-picker"><span id="dialogFolder">—</span><button type="button" id="browseFolder">استعراض...</button></div></div>
+          <label class="check-row"><input id="startImmediately" type="checkbox" checked> ابدأ التنزيل فورًا</label>
+          <div class="dialog-actions"><button type="button" class="classic-button" id="downloadLater">تنزيل لاحقًا</button><span class="action-spacer"></span><button type="button" class="classic-button" data-close-dialog>إلغاء</button><button type="submit" class="classic-button primary-classic">موافق</button></div>
+        </form>
+      </section>
+
+      <section class="dialog progress-dialog" id="progressDialog" role="dialog" aria-modal="false" aria-labelledby="progressTitle" hidden>
+        <header class="dialog-titlebar"><strong id="progressTitle">تقدم التنزيل</strong><button type="button" data-close-dialog aria-label="إغلاق"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"></path></svg></button></header>
+        <div class="dialog-content progress-content">
+          <div class="progress-tabs"><button class="progress-tab active" data-progress-tab="status">حالة التنزيل</button><button class="progress-tab" data-progress-tab="details">التفاصيل</button></div>
+          <div class="progress-view" id="progressStatusView">
+            <div class="progress-field"><span>العنوان</span><a id="progressUrl" href="#"></a></div>
+            <div class="progress-field"><span>الحالة</span><b id="progressStatus"></b></div>
+            <div class="progress-field"><span>حجم الملف</span><b id="progressSize"></b></div>
+            <div class="progress-field"><span>تم تنزيل</span><b id="progressReceived"></b></div>
+            <div class="progress-field"><span>معدل النقل</span><b id="progressRate"></b></div>
+            <div class="progress-field"><span>الوقت المتبقي</span><b id="progressEta"></b></div>
+            <div class="classic-progress"><span id="progressBar"></span></div>
+            <div class="progress-percent" id="progressPercent">0%</div>
+          </div>
+          <div class="progress-view details-view" id="progressDetailsView" hidden><div class="details-line"><span>ملف الحفظ</span><b id="detailsPath"></b></div><div class="details-line"><span>التصنيف</span><b id="detailsCategory"></b></div><div class="details-line"><span>إمكانية الاستئناف</span><b id="detailsResume"></b></div><div class="connection-log" id="connectionLog"></div></div>
+          <div class="dialog-actions"><button class="classic-button" data-progress-action="pause" id="progressPause">إيقاف مؤقت</button><span class="action-spacer"></span><button class="classic-button" data-close-dialog>إغلاق النافذة</button><button class="classic-button danger-classic" data-progress-action="cancel">إيقاف مع الاحتفاظ بالجزء</button></div>
+        </div>
+      </section>
+
+      <section class="dialog options-dialog" id="optionsDialog" role="dialog" aria-modal="true" aria-labelledby="optionsTitle" hidden>
+        <header class="dialog-titlebar"><strong id="optionsTitle">خيارات واصل</strong><button type="button" data-close-dialog aria-label="إغلاق"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"></path></svg></button></header>
+        <div class="dialog-content">
+          <div class="settings-section-title">الإعدادات العامة والحفظ</div>
+          <label class="settings-row"><span>لغة الواجهة</span><select id="languageSelect"></select></label>
+          <label class="settings-row"><span>المظهر</span><select id="themeSelect"><option value="light">فاتح</option><option value="dark">داكن</option></select></label>
+          <label class="settings-row"><span>الحد الأقصى للتنزيلات المتزامنة</span><select id="concurrencySelect"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select></label>
+          <div class="settings-row folder-setting"><span>مجلد التنزيل</span><span id="optionsFolder"></span><button id="optionsBrowse">تغيير...</button></div>
+          <div class="dialog-actions"><span class="action-spacer"></span><button class="classic-button" data-close-dialog>إلغاء</button><button class="classic-button primary-classic" id="saveOptions">موافق</button></div>
+        </div>
+      </section>
+
+      <section class="dialog extension-guide-dialog" id="extensionGuideDialog" role="dialog" aria-modal="true" aria-labelledby="extensionGuideTitle" hidden>
+        <header class="dialog-titlebar"><strong id="extensionGuideTitle"><span data-icon="browser"></span> تثبيت إضافة واصل للمتصفح</strong><button type="button" data-close-dialog aria-label="إغلاق"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"></path></svg></button></header>
+        <div class="dialog-content extension-guide-content">
+          <p class="extension-guide-intro">اتبع الخطوات الخاصة بمتصفحك. الرسوم التوضيحية تبين الأزرار التي ستحتاجها.</p>
+          <div class="extension-guide-callout"><span data-icon="shield"></span><span>إرسال الروابط لا يثبّت برامج في المتصفح؛ تحكّم في التقاط التنزيلات من إعداد الإضافة، ويطلب واصل موافقتك قبل كل تنزيل.</span></div>
+          <nav class="extension-browser-tabs" aria-label="المتصفحات المدعومة">
+            <button type="button" class="extension-browser-tab active" data-extension-tab="chrome"><span class="browser-brand chrome-brand">C</span> Chrome وBrave</button>
+            <button type="button" class="extension-browser-tab" data-extension-tab="edge"><span class="browser-brand edge-brand">e</span> Microsoft Edge</button>
+            <button type="button" class="extension-browser-tab" data-extension-tab="firefox"><span class="browser-brand firefox-brand">F</span> Firefox</button>
+          </nav>
+          <section class="extension-guide-panel" data-extension-panel="chrome">
+            <figure class="extension-guide-figure">
+              <img src="../extension/tutorial/chromium-extensions.svg" alt="رسم توضيحي لصفحة إضافات Chromium مع تحديد تحميل إضافة غير محزّمة">
+              <figcaption>رسم توضيحي لموضع وضع المطوّر وزر تحميل الإضافة في صفحة الإضافات.</figcaption>
+            </figure>
+            <ol class="extension-steps">
+              <li><strong>ابنِ ملفات الإضافة</strong><span>افتح الطرفية في مجلد المشروع وشغّل:</span><code>npm run build:ts</code><button type="button" class="copy-guide-button" data-copy-build>نسخ الأمر</button></li>
+              <li><strong>افتح صفحة الإضافات</strong><span>أدخل هذا العنوان في شريط المتصفح:</span><code>chrome://extensions</code><span>ينطبق المسار نفسه على Brave عبر <bdi>brave://extensions</bdi>.</span></li>
+              <li><strong>فعّل وضع المطوّر</strong><span>شغّل زر وضع المطوّر أعلى صفحة الإضافات، ثم اضغط «تحميل إضافة غير محزّمة».</span></li>
+              <li><strong>اختر مجلد الإضافة</strong><span>اختر هذا المجلد، وليس ملف manifest منفردًا:</span><code class="extension-path" data-extension-path>extension</code><button type="button" class="copy-guide-button" data-copy-extension-path>نسخ المسار</button></li>
+              <li><strong>ثبّت الإضافة واستخدمها</strong><span>اختياريًا ثبّت أيقونة واصل في شريط الأدوات. افتح صفحة ويب واضغط الأيقونة ثم «إرسال إلى واصل» لإضافة الرابط بعد تأكيدك.</span></li>
+              <li class="extension-capture-tip"><strong>التقاط التنزيلات تلقائيًا</strong><span>افتح نافذة الإضافة وفعّل خيار التحويل إلى واصل؛ عند تنزيل HTTP/HTTPS يلتقط التطبيق الرابط ويطلب تأكيدًا قبل البدء. أوقف الخيار لاستعادة تنزيلات المتصفح.</span></li>
+            </ol>
+          </section>
+          <section class="extension-guide-panel" data-extension-panel="edge" hidden>
+            <figure class="extension-guide-figure">
+              <img src="../extension/tutorial/edge-extensions.svg" alt="رسم توضيحي لصفحة إضافات Microsoft Edge مع تحديد تحميل غير مضغوط">
+              <figcaption>رسم توضيحي لصفحة Edge Extensions وأزرار التثبيت المحلي.</figcaption>
+            </figure>
+            <ol class="extension-steps">
+              <li><strong>ابنِ ملفات الإضافة</strong><span>شغّل الأمر التالي من مجلد المشروع مرة واحدة:</span><code>npm run build:ts</code><button type="button" class="copy-guide-button" data-copy-build>نسخ الأمر</button></li>
+              <li><strong>افتح صفحة Edge Extensions</strong><span>أدخل في شريط العنوان:</span><code>edge://extensions</code></li>
+              <li><strong>فعّل وضع المطوّر</strong><span>فعّل مفتاح Developer mode، ثم اضغط «Load unpacked».</span></li>
+              <li><strong>اختر مجلد الإضافة</strong><span>اختر مجلد extension الموجود داخل مشروع واصل:</span><code class="extension-path" data-extension-path>extension</code><button type="button" class="copy-guide-button" data-copy-extension-path>نسخ المسار</button></li>
+              <li><strong>ثبّت الإضافة</strong><span>من قائمة Extensions ثبّت أيقونة واصل، ثم أرسل رابط الصفحة ووافق على إضافته في التطبيق.</span></li>
+              <li class="extension-capture-tip"><strong>التقاط التنزيلات تلقائيًا</strong><span>افتح نافذة الإضافة وفعّل التحويل إلى واصل لتسليم التنزيلات مباشرةً؛ سيسألك التطبيق قبل أن يبدأ. يمكنك إيقاف الخيار في أي وقت.</span></li>
+            </ol>
+          </section>
+          <section class="extension-guide-panel" data-extension-panel="firefox" hidden>
+            <figure class="extension-guide-figure">
+              <img src="../extension/tutorial/firefox-debugging.svg" alt="رسم توضيحي لصفحة تصحيح إضافات Firefox مع تحديد تحميل إضافة مؤقتة">
+              <figcaption>رسم توضيحي لتحميل الإضافة مؤقتًا من about:debugging.</figcaption>
+            </figure>
+            <ol class="extension-steps">
+              <li><strong>ابنِ ملفات الإضافة</strong><span>شغّل هذا الأمر من الطرفية في مجلد المشروع:</span><code>npm run build:ts</code><button type="button" class="copy-guide-button" data-copy-build>نسخ الأمر</button></li>
+              <li><strong>افتح صفحة التصحيح</strong><span>أدخل العنوان التالي في Firefox:</span><code>about:debugging#/runtime/this-firefox</code></li>
+              <li><strong>جهّز إعداد Firefox</strong><span>احفظ نسخة Chromium، ثم شغّل الأمر من مجلد extension:</span><code>Copy-Item manifest.json manifest.chromium.json; Copy-Item manifest.firefox.json manifest.json</code></li>
+              <li><strong>حمّل الإضافة مؤقتًا</strong><span>اضغط «Load Temporary Add-on…» واختر الملف:</span><code class="extension-manifest-path" data-extension-path data-path-suffix="\manifest.json">extension\manifest.json</code><button type="button" class="copy-guide-button" data-copy-extension-path="manifest">نسخ المسار</button></li>
+              <li><strong>ابدأ الاستخدام</strong><span>افتح صفحة ويب، اضغط أيقونة واصل، وأرسل الرابط بعد مراجعته.</span></li>
+              <li class="extension-capture-tip"><strong>التقاط التنزيلات تلقائيًا</strong><span>بعد إضافة الإضافة، افتح نافذتها وفعّل التحويل إلى واصل. راجع الرابط ووافق عليه في التطبيق قبل التنزيل.</span></li>
+              <li class="extension-note"><strong>ملاحظة عن Firefox</strong><span>الإضافة المؤقتة تُزال عند إغلاق المتصفح. للتثبيت الدائم تحتاج حزمة XPI موقعة من Mozilla؛ هذا المشروع لا ينشر حزمة موقعة بعد.</span></li>
+            </ol>
+          </section>
+          <div class="extension-guide-security"><span data-icon="shield"></span><span>تستخدم الإضافة صلاحيات علامة التبويب والتنزيلات والتخزين للالتقاط الاختياري. لا تقرأ محتوى الصفحات ولا ترسل بيانات التصفح إلى خادم.</span></div>
+          <div class="dialog-actions"><span class="action-spacer"></span><button type="button" class="classic-button primary-classic" data-close-dialog>إغلاق</button></div>
+        </div>
+      </section>
+
+      <section class="dialog schedule-dialog" id="scheduleDialog" role="dialog" aria-modal="true" aria-labelledby="scheduleTitle" hidden>
+        <header class="dialog-titlebar"><strong id="scheduleTitle">جدولة التنزيلات</strong><button type="button" data-close-dialog aria-label="إغلاق"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"></path></svg></button></header>
+        <div class="dialog-content">
+          <p class="dialog-help">اختر وقتًا لبدء التنزيلات المتوقفة في هذه الجلسة.</p>
+          <label class="settings-row"><span>وقت البدء</span><input id="scheduleTime" type="time"></label>
+          <div class="schedule-notice" id="scheduleNotice">لا توجد جدولة نشطة.</div>
+          <div class="dialog-actions"><button class="classic-button" id="cancelSchedule">إلغاء الجدولة</button><span class="action-spacer"></span><button class="classic-button" data-close-dialog>إغلاق</button><button class="classic-button primary-classic" id="saveSchedule">جدولة</button></div>
+        </div>
+      </section>
+
+      <section class="dialog info-dialog" id="infoDialog" role="dialog" aria-modal="true" aria-labelledby="infoTitle" hidden>
+        <header class="dialog-titlebar"><strong id="infoTitle">معلومات</strong><button type="button" data-close-dialog aria-label="إغلاق"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"></path></svg></button></header>
+        <div class="dialog-content"><p id="infoMessage"></p><div class="dialog-actions"><span class="action-spacer"></span><button class="classic-button primary-classic" data-close-dialog>موافق</button></div></div>
+      </section>
+
+      <section class="dialog delete-dialog" id="deleteDialog" role="dialog" aria-modal="true" aria-labelledby="deleteTitle" hidden>
+        <header class="dialog-titlebar"><strong id="deleteTitle">حذف التنزيل</strong><button type="button" data-close-dialog aria-label="إغلاق"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"></path></svg></button></header>
+        <div class="dialog-content"><p id="deleteMessage">هل تريد إزالة التنزيلات المحددة من القائمة؟</p><label class="check-row"><input id="deleteFromDisk" type="checkbox"> حذف الملفات المكتملة من القرص أيضًا</label><div class="dialog-actions"><span class="action-spacer"></span><button class="classic-button" data-close-dialog>إلغاء</button><button class="classic-button danger-classic" id="confirmDelete">حذف</button></div></div>
+      </section>
+
+      <div class="context-menu" id="contextMenu" hidden>
+        <button data-context="open">فتح</button><button data-context="show">فتح مجلد الملف</button><hr>
+        <button data-context="resume">استئناف</button><button data-context="pause">إيقاف مؤقت</button><button data-context="cancel">إلغاء مع الاحتفاظ بالجزء</button>
+        <hr><button data-context="copy-url">نسخ الرابط</button><button data-context="copy-path">نسخ مسار الملف</button><hr><button data-context="delete">حذف من القائمة...</button><button data-context="delete-file">حذف الملف والجزء...</button>
+      </div>
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    </div>
+    <script src="./icons.js"></script>
+    <script src="./renderer.js"></script>
+  </body>
+</html>

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 400" role="img" aria-labelledby="title desc">
+  <title id="title">Firefox temporary extension setup illustration</title>
+  <desc id="desc">Illustration of Firefox debugging page with the temporary add-on control highlighted.</desc>
+  <rect width="960" height="400" rx="24" fill="#151a21"/>
+  <rect x="1" y="1" width="958" height="398" rx="23" fill="none" stroke="#34404d" stroke-width="2"/>
+  <rect x="0" y="0" width="960" height="56" rx="24" fill="#202832"/>
+  <path d="M0 30v26h960V30" fill="#202832"/>
+  <circle cx="31" cy="29" r="8" fill="#f06b66"/><circle cx="57" cy="29" r="8" fill="#efbb4e"/><circle cx="83" cy="29" r="8" fill="#50bd77"/>
+  <text x="122" y="37" fill="#e6edf3" font-family="Segoe UI,Arial,sans-serif" font-size="20">Firefox — This Firefox</text>
+  <rect x="652" y="15" width="274" height="28" rx="14" fill="#11161c" stroke="#34404d"/>
+  <text x="674" y="34" fill="#8fa2b5" font-family="Segoe UI,Arial,sans-serif" font-size="12">about:debugging#/runtime/this-firefox</text>
+  <text x="40" y="98" fill="#e6edf3" font-family="Segoe UI,Arial,sans-serif" font-size="23" font-weight="600">Temporary Extensions</text>
+  <rect x="40" y="119" width="878" height="83" rx="12" fill="#202832" stroke="#35414e"/>
+  <text x="65" y="151" fill="#e6edf3" font-family="Segoe UI,Arial,sans-serif" font-size="16">Load Temporary Add-on…</text>
+  <text x="65" y="177" fill="#9aa9b8" font-family="Segoe UI,Arial,sans-serif" font-size="13">Select the extension manifest.json file to load it for this session.</text>
+  <rect x="36" y="112" width="886" height="96" rx="15" fill="none" stroke="#66b9cf" stroke-width="4"/>
+  <rect x="40" y="229" width="878" height="116" rx="12" fill="#202832" stroke="#35414e"/>
+  <rect x="59" y="250" width="48" height="48" rx="12" fill="#176b87"/>
+  <path d="M83 258v20m-9-8 9 9 9-9m-16 14h14" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="125" y="270" fill="#e6edf3" font-family="Segoe UI,Arial,sans-serif" font-size="16" font-weight="600">Wasel Download Manager</text>
+  <text x="125" y="294" fill="#9aa9b8" font-family="Segoe UI,Arial,sans-serif" font-size="13">Temporary add-ons are removed when Firefox closes.</text>
+  <text x="125" y="321" fill="#66b9cf" font-family="Consolas,monospace" font-size="13">extension\manifest.json</text>
+</svg>
