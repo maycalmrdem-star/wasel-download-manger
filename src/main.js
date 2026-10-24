@@ -380,8 +380,15 @@ async function handleBridgeDownload(payload) {
   return { queued: true, confirm: false };
 }
 
+// Handlers receive only the renderer's arguments. Appending the IPC event made it fill
+// any optional parameter the renderer left out (e.g. chooseFolder() got the event as
+// its default path); handlers that need the sender use handleWithSender instead.
 function handle(channel, listener) {
-  ipcMain.handle(channel, (event, ...args) => listener(...args, event));
+  ipcMain.handle(channel, (_event, ...args) => listener(...args));
+}
+
+function handleWithSender(channel, listener) {
+  ipcMain.handle(channel, (event, ...args) => listener(BrowserWindow.fromWebContents(event.sender), ...args));
 }
 
 function registerIpc() {
@@ -413,8 +420,7 @@ function registerIpc() {
     if (!isSupportedLanguage(code)) throw new Error('WASEL:invalid-setting:{"key":"language"}');
     return JSON.parse(await fs.readFile(path.join(__dirname, '..', 'lang', `${code}.json`), 'utf8'));
   });
-  handle('window:action', (action, event) => {
-    const window = BrowserWindow.fromWebContents(event.sender);
+  handleWithSender('window:action', (window, action) => {
     if (!window) return null;
     if (action === 'minimize') window.minimize();
     else if (action === 'maximize') {
@@ -425,7 +431,7 @@ function registerIpc() {
     else if (action === 'quit') app.quit();
     return null;
   });
-  handle('window:is-maximized', (event) => BrowserWindow.fromWebContents(event.sender)?.isMaximized() ?? false);
+  handleWithSender('window:is-maximized', (window) => window?.isMaximized() ?? false);
 
   handle('updates:get-state', () => updates.state);
   handle('updates:check', () => updates.check());
@@ -461,7 +467,7 @@ function registerIpc() {
   handle('downloads:choose-folder', async (defaultPath) => {
     const result = await dialog.showOpenDialog(mainWindow, {
       properties: ['openDirectory', 'createDirectory'],
-      defaultPath: defaultPath || manager.getState().settings.outputFolder
+      defaultPath: typeof defaultPath === 'string' && defaultPath ? defaultPath : manager.getState().settings.outputFolder
     });
     return result.canceled ? null : result.filePaths[0];
   });
@@ -483,7 +489,7 @@ function registerIpc() {
     }
   });
   handle('downloads:open-folder', async (folder) => {
-    const error = await shell.openPath(folder || manager.getState().settings.outputFolder);
+    const error = await shell.openPath(typeof folder === 'string' && folder ? folder : manager.getState().settings.outputFolder);
     if (error) throw new Error(`WASEL:open-failed:${JSON.stringify({ detail: error })}`);
   });
   handle('app:open-external', async (url) => {
