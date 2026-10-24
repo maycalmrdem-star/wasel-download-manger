@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld('wasel', {
     return () => ipcRenderer.removeListener('window:maximized', listener);
   },
   checkForUpdates: () => ipcRenderer.invoke('updates:check'),
+  getUpdateStatus: () => ipcRenderer.invoke('updates:get-status'),
+  installUpdate: () => ipcRenderer.invoke('updates:install'),
   onUpdateStatus: (callback) => {
     const listener = (_event, status) => callback(status);
     ipcRenderer.on('updates:status', listener);

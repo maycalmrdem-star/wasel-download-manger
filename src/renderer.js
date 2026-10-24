@@ -89,7 +89,7 @@ function applyTranslations() {
 
 async function loadLocale(language) {
   const locale = await window.wasel.getLanguage(language);
-  const fallback = language === 'ara' ? null : await window.wasel.getLanguage('eng');
+  const fallback = ['ara', 'eng'].includes(language) ? null : await window.wasel.getLanguage('eng');
   state.locale = fallback
     ? { ...locale, translations: { ...fallback.translations, ...locale.translations } }
     : locale;
@@ -182,19 +182,7 @@ function filterItems() {
   return items;
 }
 
-window.wasel.onUpdateStatus(({ key, detail, type }) => {
-  const prefix = translate(key);
-  const suffix = key === 'يتوفر تحديث واصل'
-    ? ` ${detail} ${translate('وسيتم تنزيله تلقائيًا.')}`
-    : key === 'تنزيل التحديث'
-      ? ` ${detail}%`
-      : key === 'اكتمل تنزيل واصل'
-        ? ` ${detail}. ${translate('اختر إعادة التشغيل لتثبيته.')}`
-        : key === 'تعذر التحقق من التحديث'
-          ? `: ${detail}`
-          : '';
-  showToast(`${prefix}${suffix}`, type);
-});
+window.wasel.onUpdateStatus(renderUpdateStatus);
 
 function selectedItems() {
   return state.downloads.filter((item) => state.selected.has(item.id));
@@ -346,6 +334,64 @@ function showToast(message, type = '') {
   toast.className = `toast visible ${type}`;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { toast.className = 'toast'; }, 3000);
+}
+
+function renderUpdateStatus(status) {
+  const message = document.getElementById('updateStatus');
+  const detail = document.getElementById('updateDetail');
+  if (!message || !status) return;
+  message.textContent = translate(status.key || 'لم يبدأ البحث عن تحديثات.');
+  detail.textContent = status.detail || '';
+  const dialog = document.getElementById('updateDialog');
+  dialog.dataset.status = status.type || 'info';
+  const isBusy = ['checking', 'downloading'].includes(status.type);
+  const progress = document.getElementById('updateProgress');
+  const progressBar = document.getElementById('updateProgressBar');
+  const percentage = Math.max(0, Math.min(100, Number(status.progress) || 0));
+  progress.hidden = status.type !== 'downloading';
+  progress.setAttribute('aria-valuenow', String(percentage));
+  progressBar.style.width = `${percentage}%`;
+  document.getElementById('checkUpdates').disabled = isBusy;
+  document.getElementById('checkUpdates').textContent = isBusy ? 'جارٍ التحقق...' : 'التحقق الآن';
+  document.getElementById('installUpdate').hidden = status.key !== 'اكتمل تنزيل تحديث واصل.';
+  document.getElementById('updateAccessHelp').hidden = status.key !== 'يلزم إعداد GH_TOKEN للوصول إلى مستودع GitHub الخاص.';
+}
+
+async function runUpdateCheck() {
+  document.getElementById('checkUpdates').disabled = true;
+  renderUpdateStatus({
+    key: 'يجري التحقق من وجود تحديثات...',
+    detail: '',
+    type: 'checking',
+    progress: 0
+  });
+  try {
+    await window.wasel.checkForUpdates();
+    const currentStatus = await window.wasel.getUpdateStatus();
+    renderUpdateStatus(currentStatus);
+  } catch (error) {
+    renderUpdateStatus({
+      key: 'تعذر التحقق من التحديث.',
+      detail: error.message || 'تعذر الاتصال بخدمة التحديث.',
+      type: 'error',
+      progress: 0
+    });
+  }
+}
+
+async function openUpdateDialog() {
+  showDialog('updateDialog');
+  try {
+    renderUpdateStatus(await window.wasel.getUpdateStatus());
+  } catch (error) {
+    renderUpdateStatus({
+      key: 'تعذر التحقق من التحديث.',
+      detail: error.message || 'تعذر قراءة حالة التحديث.',
+      type: 'error',
+      progress: 0
+    });
+  }
+  await runUpdateCheck();
 }
 
 function showDialog(id) {
@@ -615,7 +661,7 @@ async function handleCommand(command, id = null) {
       break;
     case 'help': await safeCall(() => window.wasel.openHelp()); break;
     case 'check-updates':
-      await safeCall(() => window.wasel.checkForUpdates(), 'بدأ البحث عن تحديثات واصل.');
+      await openUpdateDialog();
       break;
     case 'extension-guide':
       document.getElementById('extensionGuideDialog').dataset.browser = 'chrome';
@@ -784,22 +830,36 @@ async function chooseDownloadFolder() {
 document.getElementById('browseFolder').addEventListener('click', chooseDownloadFolder);
 document.getElementById('optionsBrowse').addEventListener('click', chooseDownloadFolder);
 document.getElementById('saveOptions').addEventListener('click', async () => {
+  const language = document.getElementById('languageSelect').value;
+  if (!language) {
+    showToast('تعذر تحميل قائمة اللغات. أعد تشغيل واصل أو تحقق من ملفات lang.', 'error');
+    return;
+  }
   const previousLanguage = state.settings.language || 'ara';
   const result = await safeCall(() => window.wasel.updateSettings({
     theme: document.getElementById('themeSelect').value,
-    language: document.getElementById('languageSelect').value,
+    language,
     maxActiveDownloads: Number(document.getElementById('concurrencySelect').value),
     connectionsPerDownload: Number(document.getElementById('connectionsPerDownloadSelect').value),
     startWithWindows: document.getElementById('startWithWindows').checked
   }), 'تم حفظ الإعدادات.');
   if (result !== false) {
     try {
-      const selectedLanguage = document.getElementById('languageSelect').value;
+      const selectedLanguage = language;
       if (selectedLanguage !== previousLanguage) await loadLocale(selectedLanguage);
       closeDialog();
     } catch (error) {
       showToast(error.message || 'تعذر تحميل ملف اللغة.', 'error');
     }
+  }
+});
+
+document.getElementById('checkUpdates').addEventListener('click', runUpdateCheck);
+document.getElementById('installUpdate').addEventListener('click', async () => {
+  try {
+    await window.wasel.installUpdate();
+  } catch (error) {
+    showToast(error.message || 'تعذر تثبيت التحديث.', 'error');
   }
 });
 
@@ -998,5 +1058,6 @@ Promise.all([window.wasel.getState(), populateLanguageOptions()])
   .then(async ([nextState]) => {
     setState(nextState);
     await loadLocale(nextState.settings.language || 'ara');
+    document.getElementById('saveOptions').disabled = false;
   })
   .catch((error) => showToast(error.message || 'تعذر تهيئة التطبيق أو ملفات اللغات.', 'error'));

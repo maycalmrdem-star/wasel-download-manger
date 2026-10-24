@@ -15,6 +15,12 @@ let serverUrl;
 before(async () => {
   tempDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'wasel-test-'));
   server = http.createServer((request, response) => {
+    const errorStatus = Number(new URL(request.url, 'http://localhost').pathname.match(/^\/http-error\/(\d+)$/)?.[1]);
+    if ([400, 401, 403, 429, 503].includes(errorStatus)) {
+      response.writeHead(errorStatus);
+      response.end();
+      return;
+    }
     const content = request.url === '/slow'
       ? Buffer.alloc(512 * 1024, 0x5a)
       : Buffer.from('wasel download test payload');
@@ -167,12 +173,15 @@ test('ships a minimal-permission cross-browser extension and dedicated icon styl
   const installGuide = await fs.readFile(path.join(root, 'extension', 'INSTALL.md'), 'utf8');
   const enhancementStyles = await fs.readFile(path.join(root, 'src', 'ui-enhancements.css'), 'utf8');
   const appMain = await fs.readFile(path.join(root, 'src', 'main.js'), 'utf8');
+  const preload = await fs.readFile(path.join(root, 'src', 'preload.js'), 'utf8');
   const renderer = await fs.readFile(path.join(root, 'src', 'renderer.js'), 'utf8');
   const solutionNotes = await fs.readFile(path.join(root, 'SOLUTION_NOTES.md'), 'utf8');
   const packageJson = JSON.parse(await fs.readFile(path.join(root, 'package.json'), 'utf8'));
   const releaseWorkflow = await fs.readFile(path.join(root, '.github', 'workflows', 'release.yml'), 'utf8');
 
   assert.equal(manifest.manifest_version, 3);
+  assert.equal(manifest.version, packageJson.version);
+  assert.equal(firefoxManifest.version, packageJson.version);
   assert.deepEqual(manifest.permissions, ['activeTab', 'downloads', 'storage']);
   assert.equal(manifest.browser_specific_settings.gecko.strict_min_version, '128.0');
   assert.deepEqual(manifest.background, { service_worker: 'background.js', type: 'module' });
@@ -214,6 +223,19 @@ test('ships a minimal-permission cross-browser extension and dedicated icon styl
   assert.match(appMain, /app\.setLoginItemSettings\(/);
   assert.match(appMain, /args: \['--hidden'\]/);
   assert.match(appMain, /autoUpdater\.checkForUpdates\(\)/);
+  assert.match(appMain, /autoUpdater\.on\('update-not-available'/);
+  assert.match(appMain, /updateCheckPromise/);
+  assert.match(appMain, /updates:get-status/);
+  assert.match(appMain, /updates:install/);
+  assert.match(appMain, /يلزم إعداد GH_TOKEN للوصول إلى مستودع GitHub الخاص/);
+  assert.match(preload, /getUpdateStatus: \(\) => ipcRenderer\.invoke\('updates:get-status'\)/);
+  assert.match(preload, /installUpdate: \(\) => ipcRenderer\.invoke\('updates:install'\)/);
+  assert.match(renderer, /function renderUpdateStatus\(status\)/);
+  assert.match(renderer, /window\.wasel\.onUpdateStatus\(renderUpdateStatus\)/);
+  assert.match(html, /id="updateDialog"/);
+  assert.match(html, /id="checkUpdates"/);
+  assert.match(html, /id="installUpdate"/);
+  assert.match(enhancementStyles, /\.update-dialog/);
   assert.match(appMain, /process\.env\.GH_TOKEN/);
   assert.match(appMain, /ipcMain\.handle\('app:get-version', \(\) => app\.getVersion\(\)\)/);
   assert.match(renderer, /window\.wasel\.getAppVersion\(\)/);
@@ -266,6 +288,31 @@ test('downloads an HTTP file, records it, and persists its completed state', asy
   assert.equal(await fs.readFile(item.savePath, 'utf8'), 'wasel download test payload');
   const saved = JSON.parse(await fs.readFile(path.join(tempDirectory, 'library.json'), 'utf8'));
   assert.equal(saved.items[0].status, 'completed');
+  await manager.shutdown();
+});
+
+test('explains HTTP 400, 401, 403, 429, and server-error responses', async () => {
+  const manager = new DownloadManager({
+    dataFile: path.join(tempDirectory, 'http-errors-library.json'),
+    defaultFolder: path.join(tempDirectory, 'http-errors-files')
+  });
+  await manager.initialize();
+  const expectedGuidance = new Map([
+    [400, 'تحقق من الرابط'],
+    [401, 'لا يستطيع واصل تجاوز المصادقة'],
+    [403, 'رفض الخادم الوصول'],
+    [429, 'قيّد الخادم الطلبات مؤقتًا'],
+    [503, 'خطأ مؤقت في الخادم']
+  ]);
+
+  for (const [status, guidance] of expectedGuidance) {
+    const url = `${serverUrl.slice(0, serverUrl.lastIndexOf('/'))}/http-error/${status}`;
+    const item = await manager.add({ url, fileName: `http-${status}.bin` });
+    await waitFor(() => ['completed', 'error'].includes(manager.getDownload(item.id)?.status));
+    assert.equal(manager.getDownload(item.id).status, 'error');
+    assert.match(manager.getDownload(item.id).error, new RegExp(`HTTP ${status}`));
+    assert.match(manager.getDownload(item.id).error, new RegExp(guidance));
+  }
   await manager.shutdown();
 });
 
@@ -407,6 +454,11 @@ test('persists theme and concurrency settings and pauses all active downloads sa
   await manager.updateSettings({ language: 'fra' });
   assert.equal(manager.getState().settings.language, 'fra');
   await assert.rejects(manager.updateSettings({ language: 'not-a-language' }), /لغة الواجهة المحددة غير مدعومة/);
+  await assert.rejects(
+    manager.updateSettings({ theme: 'light', language: 'not-a-language' }),
+    /لغة الواجهة المحددة غير مدعومة/
+  );
+  assert.equal(manager.getState().settings.theme, 'dark', 'invalid settings do not partially update saved preferences');
 
   const item = await manager.add({
     url: `${serverUrl.slice(0, serverUrl.lastIndexOf('/'))}/slow`,

@@ -15,6 +15,14 @@ let protocolQueue = Promise.resolve();
 let tray;
 let updateCheckTimer;
 let lastUpdateProgress = 0;
+let updateCheckPromise;
+let updateDownloaded = false;
+let updateStatus = {
+  key: 'لم يبدأ البحث عن تحديثات.',
+  detail: '',
+  type: 'info',
+  progress: 0
+};
 const launchHidden = process.argv.includes('--hidden');
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 
@@ -148,21 +156,41 @@ function updateTrayMenu(downloadState = manager?.getState()) {
   ]));
 }
 
-function publishUpdateStatus(key, detail = '', type = 'info') {
-  broadcast('updates:status', { key, detail, type });
+function publishUpdateStatus(key, detail = '', type = 'info', progress = 0) {
+  updateStatus = { key, detail, type, progress };
+  broadcast('updates:status', updateStatus);
 }
 
 async function checkForUpdates() {
   if (!app.isPackaged) {
-    publishUpdateStatus('التحديثات التلقائية متاحة في النسخة المثبتة فقط.');
+    publishUpdateStatus('التحديثات التلقائية متاحة في النسخة المثبتة فقط.', '', 'info');
     return false;
   }
   if (!process.env.GH_TOKEN) {
-    publishUpdateStatus('للبحث عن تحديثات المستودع الخاص، اضبط GH_TOKEN للمستخدم ثم أعد تشغيل واصل.', 'error');
+    publishUpdateStatus(
+      'يلزم إعداد GH_TOKEN للوصول إلى مستودع GitHub الخاص.',
+      'أنشئ رمزًا بصلاحية Contents: Read-only للمستودع، واحفظه كمتغير مستخدم GH_TOKEN في Windows ثم أعد تشغيل واصل.',
+      'error'
+    );
     return false;
   }
-  const result = await autoUpdater.checkForUpdates();
-  return Boolean(result?.updateInfo);
+  if (updateCheckPromise) return updateCheckPromise;
+  publishUpdateStatus('يجري التحقق من وجود تحديثات...', '', 'checking');
+  updateCheckPromise = autoUpdater.checkForUpdates()
+    .then((result) => {
+      if (result && result.isUpdateAvailable === false) {
+        publishUpdateStatus('لديك أحدث إصدار من واصل.', `الإصدار الحالي: ${app.getVersion()}.`);
+      }
+      return Boolean(result?.isUpdateAvailable);
+    })
+    .catch((error) => {
+      publishUpdateStatus('تعذر التحقق من التحديث.', error.message, 'error');
+      throw error;
+    })
+    .finally(() => {
+      updateCheckPromise = null;
+    });
+  return updateCheckPromise;
 }
 
 function startUpdateChecks() {
@@ -170,19 +198,23 @@ function startUpdateChecks() {
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
   lastUpdateProgress = 0;
-  autoUpdater.on('checking-for-update', () => publishUpdateStatus('يجري التحقق من وجود تحديثات...'));
+  autoUpdater.on('checking-for-update', () => publishUpdateStatus('يجري التحقق من وجود تحديثات...', '', 'checking'));
   autoUpdater.on('update-available', (info) => {
-    publishUpdateStatus('يتوفر تحديث واصل', info.version);
+    publishUpdateStatus('يتوفر تحديث واصل', `الإصدار ${info.version}. سيبدأ التنزيل تلقائيًا.`);
+  });
+  autoUpdater.on('update-not-available', (info) => {
+    publishUpdateStatus('لديك أحدث إصدار من واصل.', `الإصدار الحالي: ${info.version || app.getVersion()}.`);
   });
   autoUpdater.on('download-progress', (progress) => {
     const percent = Math.round(progress.percent);
     if (percent >= lastUpdateProgress + 10) {
       lastUpdateProgress = percent;
-      publishUpdateStatus('تنزيل التحديث', String(percent));
+      publishUpdateStatus('جارٍ تنزيل تحديث واصل...', `تم تنزيل ${percent}٪.`, 'downloading', percent);
     }
   });
   autoUpdater.on('update-downloaded', (info) => {
-    publishUpdateStatus('اكتمل تنزيل واصل', info.version);
+    updateDownloaded = true;
+    publishUpdateStatus('اكتمل تنزيل تحديث واصل.', `الإصدار ${info.version} جاهز للتثبيت.`);
     const installPrompt = () => dialog.showMessageBox({
       type: 'info',
       title: 'تحديث واصل جاهز',
@@ -209,14 +241,14 @@ function startUpdateChecks() {
     }
   });
   autoUpdater.on('error', (error) => {
-    publishUpdateStatus('تعذر التحقق من التحديث', error.message, 'error');
+    publishUpdateStatus('تعذر التحقق من التحديث.', error.message, 'error');
   });
   checkForUpdates().catch((error) => {
-    publishUpdateStatus('تعذر التحقق من التحديث', error.message, 'error');
+    publishUpdateStatus('تعذر التحقق من التحديث.', error.message, 'error');
   });
   updateCheckTimer = setInterval(() => {
     checkForUpdates().catch((error) => {
-      publishUpdateStatus('تعذر التحقق من التحديث', error.message, 'error');
+      publishUpdateStatus('تعذر التحقق من التحديث.', error.message, 'error');
     });
   }, 6 * 60 * 60 * 1000);
   updateCheckTimer.unref();
@@ -265,6 +297,11 @@ function registerIpc() {
     return window?.isMaximized() ?? false;
   });
   ipcMain.handle('updates:check', () => checkForUpdates());
+  ipcMain.handle('updates:get-status', () => updateStatus);
+  ipcMain.handle('updates:install', () => {
+    if (!updateDownloaded) throw new Error('لم يكتمل تنزيل تحديث جديد بعد.');
+    autoUpdater.quitAndInstall();
+  });
   ipcMain.handle('downloads:get-state', () => manager.getState());
   ipcMain.handle('downloads:add', (_event, input) => manager.add(input));
   ipcMain.handle('downloads:pause', (_event, id) => manager.pause(id));

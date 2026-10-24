@@ -476,6 +476,99 @@ body {
   outline-offset: 2px;
 }
 
+.options-dialog {
+  max-height: calc(100vh - 36px);
+  overflow-y: auto;
+}
+
+.update-dialog {
+  width: min(460px, calc(100vw - 32px));
+}
+
+.update-content {
+  display: grid;
+  gap: 12px;
+}
+
+.update-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 11px;
+  border-bottom: 1px solid var(--divider);
+}
+
+.update-brand img {
+  width: 38px;
+  height: 38px;
+}
+
+.update-brand div {
+  display: grid;
+  gap: 2px;
+}
+
+.update-brand strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.update-brand span,
+.update-detail {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.update-status,
+.update-detail {
+  margin: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+
+.update-dialog[data-status="error"] .update-status {
+  color: var(--error);
+}
+
+.update-dialog[data-status="checking"] .update-status,
+.update-dialog[data-status="downloading"] .update-status {
+  color: var(--brand);
+}
+
+.update-progress {
+  overflow: hidden;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--divider);
+}
+
+.update-progress[hidden] {
+  display: none;
+}
+
+.update-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--progress-dark), var(--progress), var(--brand));
+  transition: width 180ms ease;
+}
+
+.update-access-help {
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--warn) 35%, var(--divider));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--warn) 8%, var(--panel));
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.update-access-help[hidden] {
+  display: none;
+}
+
 .extension-guide-dialog {
   width: min(850px, calc(100vw - 32px));
   max-height: min(860px, calc(100vh - 32px));

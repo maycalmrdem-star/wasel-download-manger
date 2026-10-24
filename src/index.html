@@ -47,7 +47,7 @@
           <button data-command="toggle-categories">إظهار/إخفاء التصنيفات <kbd>F4</kbd></button><button data-command="toggle-status">إظهار/إخفاء شريط الحالة</button><hr><button data-command="theme-light">المظهر الفاتح</button><button data-command="theme-dark">المظهر الداكن</button><button data-command="refresh">تحديث القائمة <kbd>F5</kbd></button>
         </div></div>
         <div class="menu-entry"><button class="menu-trigger" data-menu="help">مساعدة</button><div class="menu-popup">
-          <button data-command="shortcuts">اختصارات لوحة المفاتيح</button><button data-command="check-updates">التحقق من تحديثات واصل</button><button data-command="help">دليل الاستخدام</button><button data-command="extension-guide">تثبيت إضافة المتصفح</button><button data-command="about">حول واصل</button>
+          <button data-command="shortcuts">اختصارات لوحة المفاتيح</button><button data-command="check-updates">التحقق من تحديثات واصل...</button><button data-command="help">دليل الاستخدام</button><button data-command="extension-guide">تثبيت إضافة المتصفح</button><button data-command="about">حول واصل</button>
         </div></div>
         <div class="menu-entry"><button class="menu-trigger" data-menu="license">التسجيل</button><div class="menu-popup">
           <button data-command="license">الترخيص مفتوح المصدر</button>
@@ -166,7 +166,19 @@
           <label class="settings-row"><span>الاتصالات المتوازية لكل تنزيل</span><select id="connectionsPerDownloadSelect"><option value="1">1 — اتصال واحد</option><option value="2">2 — متوازن</option><option value="4">4 — سريع</option><option value="8">8 — أقصى سرعة</option></select></label>
           <div class="settings-row folder-setting"><span>مجلد التنزيل</span><span id="optionsFolder"></span><button id="optionsBrowse">تغيير...</button></div>
           <label class="settings-toggle-row" for="startWithWindows"><span><strong>بدء واصل مع Windows</strong><small>إظهار التطبيق في تبويب Startup وبدؤه مخفيًا قرب الساعة</small></span><input id="startWithWindows" type="checkbox"><span class="settings-toggle-switch" aria-hidden="true"></span></label>
-          <div class="dialog-actions"><span class="action-spacer"></span><button class="classic-button" data-close-dialog>إلغاء</button><button class="classic-button primary-classic" id="saveOptions">موافق</button></div>
+          <div class="dialog-actions"><span class="action-spacer"></span><button class="classic-button" data-close-dialog>إلغاء</button><button class="classic-button primary-classic" id="saveOptions" disabled>موافق</button></div>
+        </div>
+      </section>
+
+      <section class="dialog update-dialog" id="updateDialog" role="dialog" aria-modal="true" aria-labelledby="updateDialogTitle" hidden>
+        <header class="dialog-titlebar"><strong id="updateDialogTitle">تحديثات واصل</strong><button type="button" data-close-dialog aria-label="إغلاق"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"></path></svg></button></header>
+        <div class="dialog-content update-content">
+          <div class="update-brand"><img src="../assets/wasel.svg" alt=""><div><strong>واصل</strong><span>تحديثات التطبيق</span></div></div>
+          <p id="updateStatus" class="update-status" role="status" aria-live="polite">لم يبدأ البحث عن تحديثات.</p>
+          <p id="updateDetail" class="update-detail"></p>
+          <div id="updateProgress" class="update-progress" role="progressbar" aria-label="تقدم تنزيل التحديث" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" hidden><span id="updateProgressBar"></span></div>
+          <div id="updateAccessHelp" class="update-access-help" hidden>المستودع خاص. اضبط متغير المستخدم GH_TOKEN في Windows برمز قراءة للمستودع، ثم أعد تشغيل واصل. لا تشارك الرمز أو تضعه في الملفات.</div>
+          <div class="dialog-actions"><span class="action-spacer"></span><button class="classic-button" data-close-dialog>إغلاق</button><button id="installUpdate" class="classic-button primary-classic" hidden>إعادة التشغيل والتثبيت</button><button id="checkUpdates" class="classic-button primary-classic">التحقق الآن</button></div>
         </div>
       </section>
 

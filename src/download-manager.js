@@ -234,34 +234,40 @@ class DownloadManager {
   }
 
   async updateSettings(settings) {
+    if (!settings || typeof settings !== 'object' || Array.isArray(settings)) {
+      throw new Error('الإعدادات المحددة غير صالحة.');
+    }
+
+    const nextSettings = { ...this.settings };
     if (settings.theme !== undefined) {
       if (!['light', 'dark'].includes(settings.theme)) throw new Error('المظهر المحدد غير صالح.');
-      this.settings.theme = settings.theme;
+      nextSettings.theme = settings.theme;
     }
     if (settings.language !== undefined) {
       if (!isSupportedLanguage(settings.language)) throw new Error('لغة الواجهة المحددة غير مدعومة.');
-      this.settings.language = settings.language;
+      nextSettings.language = settings.language;
     }
     if (settings.maxActiveDownloads !== undefined) {
       const value = Number(settings.maxActiveDownloads);
       if (!Number.isInteger(value) || value < 1 || value > 10) {
         throw new Error('عدد التنزيلات المتزامنة يجب أن يكون بين 1 و10.');
       }
-      this.settings.maxActiveDownloads = value;
+      nextSettings.maxActiveDownloads = value;
     }
     if (settings.connectionsPerDownload !== undefined) {
       const value = Number(settings.connectionsPerDownload);
       if (!Number.isInteger(value) || value < 1 || value > MAX_CONNECTIONS_PER_DOWNLOAD) {
         throw new Error('عدد الاتصالات لكل تنزيل يجب أن يكون بين 1 و8.');
       }
-      this.settings.connectionsPerDownload = value;
+      nextSettings.connectionsPerDownload = value;
     }
     if (settings.startWithWindows !== undefined) {
       if (typeof settings.startWithWindows !== 'boolean') {
         throw new Error('إعداد بدء التشغيل مع Windows غير صالح.');
       }
-      this.settings.startWithWindows = settings.startWithWindows;
+      nextSettings.startWithWindows = settings.startWithWindows;
     }
+    this.settings = nextSettings;
     await this.persist();
     this.publish();
     this.schedule();
@@ -506,7 +512,7 @@ class DownloadManager {
       }
       if (status < 200 || status >= 300) {
         response.resume();
-        throw new Error(`استجاب الخادم بالرمز ${status}.`);
+        throw httpStatusError(status);
       }
       if (append) {
         const start = Number(response.headers['content-range']?.match(/^bytes (\d+)-/)?.[1]);
@@ -670,6 +676,20 @@ function rangeValidatorHeaders(validators) {
   }
   if (validators.lastModified) return { 'If-Range': validators.lastModified };
   return {};
+}
+
+function httpStatusError(status) {
+  const explanations = {
+    400: 'رفض الخادم الطلب؛ تحقق من الرابط أو من انتهاء صلاحيته.',
+    401: 'يتطلب الرابط تسجيل الدخول أو بيانات اعتماد صالحة؛ لا يستطيع واصل تجاوز المصادقة.',
+    403: 'رفض الخادم الوصول؛ تحقق من صلاحية الرابط أو نزّل الملف من الموقع بعد تسجيل الدخول.',
+    404: 'لم يعثر الخادم على الملف؛ تحقق من الرابط.',
+    408: 'انتهت مهلة الطلب لدى الخادم؛ حاول مرة أخرى لاحقًا.',
+    429: 'قيّد الخادم الطلبات مؤقتًا؛ انتظر قليلًا ثم أعد المحاولة.'
+  };
+  const explanation = explanations[status]
+    || (status >= 500 ? 'حدث خطأ مؤقت في الخادم؛ حاول مرة أخرى لاحقًا.' : 'رفض الخادم طلب التنزيل.');
+  return new Error(`استجاب الخادم برمز HTTP ${status}: ${explanation}`);
 }
 
 function cleanFileName(value) {
