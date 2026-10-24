@@ -135,6 +135,21 @@ function saveWindowState() {
   }, 400);
 }
 
+const TITLE_BAR_HEIGHT = 52;
+
+function titleBarColors() {
+  const dark = nativeTheme.shouldUseDarkColors;
+  return {
+    color: supportsMica ? '#00000000' : (dark ? '#1e1e20' : '#ffffff'),
+    symbolColor: dark ? '#f5f5f7' : '#1d1d1f',
+    height: TITLE_BAR_HEIGHT
+  };
+}
+
+nativeTheme.on('updated', () => {
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.setTitleBarOverlay(titleBarColors());
+});
+
 async function createWindow() {
   const stored = await readWindowState();
   mainWindow = new BrowserWindow({
@@ -144,7 +159,10 @@ async function createWindow() {
     height: Math.max(stored.height || 760, 520),
     minWidth: 820,
     minHeight: 520,
-    frame: false,
+    // Hidden title bar with the native Windows caption buttons (minimize, maximize with
+    // Snap Layouts, close) drawn over the top-right corner of the page.
+    titleBarStyle: 'hidden',
+    titleBarOverlay: titleBarColors(),
     show: false,
     backgroundColor: supportsMica ? '#00000000' : (nativeTheme.shouldUseDarkColors ? '#1e1e20' : '#f5f5f7'),
     ...(supportsMica ? { backgroundMaterial: 'mica' } : {}),
@@ -432,6 +450,13 @@ function registerIpc() {
     return null;
   });
   handleWithSender('window:is-maximized', (window) => window?.isMaximized() ?? false);
+  // The renderer reports the colors under the caption buttons so they blend in.
+  handleWithSender('window:overlay', (window, colors) => {
+    const hex = /^#[0-9a-f]{6}([0-9a-f]{2})?$/i;
+    if (!window || !hex.test(colors?.color) || !hex.test(colors?.symbolColor)) return false;
+    window.setTitleBarOverlay({ color: colors.color, symbolColor: colors.symbolColor, height: TITLE_BAR_HEIGHT });
+    return true;
+  });
 
   handle('updates:get-state', () => updates.state);
   handle('updates:check', () => updates.check());
